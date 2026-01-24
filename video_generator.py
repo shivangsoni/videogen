@@ -32,6 +32,7 @@ from script_parser import ScriptSegment, get_full_narration_text
 from animated_background import AnimatedBackgroundGenerator
 from stock_video_fetcher import StockVideoFetcher
 from audio_generator import AudioGenerator
+from translator import Translator
 
 
 class VideoGenerator:
@@ -219,6 +220,7 @@ class VideoGenerator:
         output_filename: str = "output_short.mp4",
         use_stock_videos: bool = True,
         stock_keywords: List[str] = None,
+        target_language: str = "en",
     ) -> str:
         """
         Generate video with stock videos/animations and full-screen captions.
@@ -228,17 +230,25 @@ class VideoGenerator:
             output_filename: Output filename
             use_stock_videos: Whether to fetch stock videos
             stock_keywords: Optional custom keywords for stock video search
+            target_language: Language code for audio (captions stay in English)
         """
         print("=" * 50)
         print("YOUTUBE SHORTS VIDEO GENERATOR")
         print("=" * 50)
         
-        # Step 1: Generate audio
+        # Step 1: Generate audio (translated if not English)
         print("\n[1/4] Generating voiceover audio...")
         full_text = get_full_narration_text(segments)
+        
+        # Translate for TTS if target language is not English
+        translator = Translator(target_language)
+        translated_text = translator.translate(full_text)
+        if target_language != "en" and not target_language.startswith("en"):
+            print(f"      Translated to: {target_language}")
+        
         audio_path = str(self.temp_dir / "narration.mp3")
         _, audio_duration = self.audio_generator.generate_audio(
-            full_text, 
+            translated_text,  # Use translated text for audio
             audio_path,
             rate="-5%"
         )
@@ -333,18 +343,18 @@ class VideoGenerator:
         
         bg = bg.set_position((0, 0))
         
-        # Create caption clips - SUBTITLE STYLE AT BOTTOM (v2: reduced font sizes by 8px)
+        # Create caption clips - SUBTITLE STYLE AT BOTTOM
         caption_clips = []
         for text, seg_type, start_time, end_time in line_timings:
             duration = end_time - start_time
             
-            # Font sizes - reduced by 8px for v2, ensures text fits within frame
+            # Font sizes - smaller captions
             if seg_type == 'hook':
-                font_size = 44  # Slightly bigger for hook (was 52)
+                font_size = 32  # Hook
             elif seg_type == 'cta':
-                font_size = 42  # CTA size (was 50)
+                font_size = 30  # CTA
             else:
-                font_size = 40  # Main content size (was 48)
+                font_size = 28  # Main content
             
             caption_clip = self.create_caption_clip(
                 text, start_time, duration, font_size

@@ -76,11 +76,12 @@ def generate_video(
         # Step 5: Build final video (60% -> 100%)
         progress(0.65, desc="Step 5/5: Building video...")
         
-        # Create video
+        # Create video (voice is the target language code for translation)
         result_path = generator.generate_video(
             segments=segments,
             output_filename=output_filename,
             stock_keywords=keywords,
+            target_language=voice,  # Translate to this language for audio
         )
         
         progress(0.80, desc="Step 5/5: Encoding video...")
@@ -205,7 +206,7 @@ Your call to action.""",
                 )
                 
                 voice_style = gr.Dropdown(
-                    label="🎙️ Voice Language",
+                    label="🎙️ Audio Language (auto-translates)",
                     choices=[
                         "English (US)",
                         "English (UK)",
@@ -227,6 +228,7 @@ Your call to action.""",
                         "Turkish",
                     ],
                     value="English (US)",
+                    info="Script will be auto-translated for voiceover. Captions stay in English.",
                 )
             
             generate_btn = gr.Button(
