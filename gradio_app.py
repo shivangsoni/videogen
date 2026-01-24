@@ -16,10 +16,174 @@ os.environ.setdefault("OUTPUT_DIR", tempfile.gettempdir() + "/videogen_output")
 from script_parser import parse_script, get_full_narration_text
 from video_generator import VideoGenerator
 from stock_video_fetcher import StockVideoFetcher
+from audio_generator import AudioGenerator, EDGE_TTS_VOICES
 
 
 # Get API key from environment (set in HF Spaces secrets)
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
+
+# Voice options organized by language and gender
+VOICE_OPTIONS = {
+    "English": {
+        "Male": [
+            ("Christopher (US)", "en-US-ChristopherNeural"),
+            ("Guy (US)", "en-US-GuyNeural"),
+            ("Eric (US)", "en-US-EricNeural"),
+            ("Ryan (UK)", "en-GB-RyanNeural"),
+            ("Ravi (India)", "en-IN-PrabhatNeural"),
+        ],
+        "Female": [
+            ("Jenny (US)", "en-US-JennyNeural"),
+            ("Aria (US)", "en-US-AriaNeural"),
+            ("Ava (US)", "en-US-AvaNeural"),
+            ("Michelle (US)", "en-US-MichelleNeural"),
+            ("Emma (US)", "en-US-EmmaNeural"),
+            ("Sonia (UK)", "en-GB-SoniaNeural"),
+            ("Neerja (India)", "en-IN-NeerjaNeural"),
+        ],
+    },
+    "Hindi": {
+        "Male": [("Madhur", "hi-IN-MadhurNeural")],
+        "Female": [("Swara", "hi-IN-SwaraNeural")],
+    },
+    "Spanish": {
+        "Male": [("Alvaro (Spain)", "es-ES-AlvaroNeural"), ("Jorge (Mexico)", "es-MX-JorgeNeural")],
+        "Female": [("Elvira (Spain)", "es-ES-ElviraNeural"), ("Dalia (Mexico)", "es-MX-DaliaNeural")],
+    },
+    "French": {
+        "Male": [("Henri", "fr-FR-HenriNeural")],
+        "Female": [("Denise", "fr-FR-DeniseNeural")],
+    },
+    "German": {
+        "Male": [("Conrad", "de-DE-ConradNeural")],
+        "Female": [("Katja", "de-DE-KatjaNeural")],
+    },
+    "Portuguese": {
+        "Male": [("Antonio (Brazil)", "pt-BR-AntonioNeural")],
+        "Female": [("Francisca (Brazil)", "pt-BR-FranciscaNeural")],
+    },
+    "Italian": {
+        "Male": [("Diego", "it-IT-DiegoNeural")],
+        "Female": [("Elsa", "it-IT-ElsaNeural")],
+    },
+    "Japanese": {
+        "Male": [("Keita", "ja-JP-KeitaNeural")],
+        "Female": [("Nanami", "ja-JP-NanamiNeural")],
+    },
+    "Korean": {
+        "Male": [("InJoon", "ko-KR-InJoonNeural")],
+        "Female": [("SunHi", "ko-KR-SunHiNeural")],
+    },
+    "Chinese": {
+        "Male": [("Yunyang", "zh-CN-YunyangNeural")],
+        "Female": [("Xiaoxiao", "zh-CN-XiaoxiaoNeural")],
+    },
+    "Arabic": {
+        "Male": [("Hamed", "ar-SA-HamedNeural")],
+        "Female": [("Zariyah", "ar-SA-ZariyahNeural")],
+    },
+    "Russian": {
+        "Male": [("Dmitry", "ru-RU-DmitryNeural")],
+        "Female": [("Svetlana", "ru-RU-SvetlanaNeural")],
+    },
+    "Dutch": {
+        "Male": [("Maarten", "nl-NL-MaartenNeural")],
+        "Female": [("Colette", "nl-NL-ColetteNeural")],
+    },
+    "Turkish": {
+        "Male": [("Ahmet", "tr-TR-AhmetNeural")],
+        "Female": [("Emel", "tr-TR-EmelNeural")],
+    },
+    "Polish": {
+        "Male": [("Marek", "pl-PL-MarekNeural")],
+        "Female": [("Zofia", "pl-PL-ZofiaNeural")],
+    },
+    "Swedish": {
+        "Male": [("Mattias", "sv-SE-MattiasNeural")],
+        "Female": [("Sofie", "sv-SE-SofieNeural")],
+    },
+    "Norwegian": {
+        "Male": [("Finn", "nb-NO-FinnNeural")],
+        "Female": [("Pernille", "nb-NO-PernilleNeural")],
+    },
+    "Danish": {
+        "Male": [("Jeppe", "da-DK-JeppeNeural")],
+        "Female": [("Christel", "da-DK-ChristelNeural")],
+    },
+}
+
+# Hello translations for preview
+HELLO_TRANSLATIONS = {
+    "English": "Hello! This is how I sound.",
+    "Hindi": "नमस्ते! मैं ऐसे बोलता हूँ।",
+    "Spanish": "¡Hola! Así es como sueno.",
+    "French": "Bonjour! Voici comment je parle.",
+    "German": "Hallo! So klinge ich.",
+    "Portuguese": "Olá! É assim que eu falo.",
+    "Italian": "Ciao! Ecco come parlo.",
+    "Japanese": "こんにちは！私の声はこんな感じです。",
+    "Korean": "안녕하세요! 제 목소리는 이렇습니다.",
+    "Chinese": "你好！这是我说话的声音。",
+    "Arabic": "مرحبا! هذا هو صوتي.",
+    "Russian": "Привет! Вот как я звучу.",
+    "Dutch": "Hallo! Zo klink ik.",
+    "Turkish": "Merhaba! Sesim böyle.",
+    "Polish": "Cześć! Tak brzmi mój głos.",
+    "Swedish": "Hej! Så här låter jag.",
+    "Norwegian": "Hei! Slik høres jeg ut.",
+    "Danish": "Hej! Sådan lyder jeg.",
+}
+
+
+def get_voice_choices(language: str, voice_type: str) -> list:
+    """Get voice choices based on language and gender"""
+    if language in VOICE_OPTIONS and voice_type in VOICE_OPTIONS[language]:
+        return [name for name, _ in VOICE_OPTIONS[language][voice_type]]
+    return ["Default"]
+
+
+def get_voice_id(language: str, voice_type: str, voice_name: str) -> str:
+    """Get the Edge TTS voice ID from selections"""
+    if language in VOICE_OPTIONS and voice_type in VOICE_OPTIONS[language]:
+        for name, voice_id in VOICE_OPTIONS[language][voice_type]:
+            if name == voice_name:
+                return voice_id
+    # Fallback
+    return EDGE_TTS_VOICES.get(f"{language} - {voice_type}", "en-US-ChristopherNeural")
+
+
+def update_voice_dropdown(language: str, voice_type: str):
+    """Update voice dropdown when language or voice type changes"""
+    choices = get_voice_choices(language, voice_type)
+    return gr.update(choices=choices, value=choices[0] if choices else "Default")
+
+
+def preview_voice(language: str, voice_type: str, voice_name: str):
+    """Generate a preview audio of the selected voice saying Hello"""
+    import asyncio
+    
+    try:
+        voice_id = get_voice_id(language, voice_type, voice_name)
+        hello_text = HELLO_TRANSLATIONS.get(language, "Hello! This is how I sound.")
+        
+        # Generate preview audio
+        temp_dir = Path(tempfile.gettempdir()) / "videogen_temp"
+        temp_dir.mkdir(exist_ok=True)
+        preview_path = temp_dir / f"preview_{uuid.uuid4().hex[:8]}.mp3"
+        
+        import edge_tts
+        
+        async def generate():
+            communicate = edge_tts.Communicate(hello_text, voice_id)
+            await communicate.save(str(preview_path))
+        
+        asyncio.run(generate())
+        
+        return str(preview_path)
+        
+    except Exception as e:
+        print(f"Preview error: {e}")
+        return None
 
 
 def generate_video(
@@ -27,6 +191,8 @@ def generate_video(
     stock_keywords: str,
     language: str,
     voice_type: str,
+    voice_name: str,
+    use_anime_clips: bool,
     progress=gr.Progress()
 ) -> str:
     """Generate a YouTube Shorts video from script text."""
@@ -34,22 +200,24 @@ def generate_video(
     if not script_text.strip():
         raise gr.Error("Please enter a script!")
     
-    if not PEXELS_API_KEY:
-        raise gr.Error("Pexels API key not configured. Please add PEXELS_API_KEY to Space secrets.")
+    if not PEXELS_API_KEY and not use_anime_clips:
+        raise gr.Error("Pexels API key not configured. Please add PEXELS_API_KEY to Space secrets or use anime clips.")
     
     # Parse keywords
     keywords = None
     if stock_keywords.strip():
         keywords = [k.strip() for k in stock_keywords.split(",") if k.strip()]
     
-    # Combine language and voice type (e.g., "Hindi" + "Male" -> "Hindi - Male")
-    voice = f"{language} - {voice_type}"
+    # Get the specific voice ID
+    voice_id = get_voice_id(language, voice_type, voice_name)
+    voice = f"{language} - {voice_type}"  # For translation
     
     try:
         # Initialize
         progress(0.01, desc="Initializing video generator...")
         generator = VideoGenerator(pexels_api_key=PEXELS_API_KEY)
         generator.audio_generator.voice = voice
+        generator.audio_generator.voice_id = voice_id  # Use specific voice ID
         
         # Parse script
         progress(0.03, desc="Parsing script...")
@@ -72,6 +240,7 @@ def generate_video(
             stock_keywords=keywords,
             target_language=voice,
             progress_callback=progress_callback,
+            use_anime_clips=use_anime_clips,
         )
         
         progress(1.0, desc="✅ Complete! Video ready.")
@@ -235,6 +404,34 @@ Your call to action.""",
                     info="Select male or female voice",
                 )
             
+            with gr.Row():
+                voice_name = gr.Dropdown(
+                    label="🗣️ Voice",
+                    choices=get_voice_choices("English", "Male"),
+                    value="Christopher (US)",
+                    info="Select specific voice",
+                )
+                
+                preview_btn = gr.Button(
+                    "🔊 Preview",
+                    size="sm",
+                    scale=0,
+                )
+            
+            # Audio preview output (hidden until played)
+            voice_preview = gr.Audio(
+                label="Voice Preview",
+                visible=True,
+                autoplay=True,
+            )
+            
+            with gr.Row():
+                use_anime_clips = gr.Checkbox(
+                    label="🎌 Use Anime Clips (Trace Moe API)",
+                    value=False,
+                    info="When checked, uses anime clips instead of Pexels stock videos",
+                )
+            
             generate_btn = gr.Button(
                 "🚀 Generate Video",
                 variant="primary",
@@ -280,8 +477,28 @@ Your call to action.""",
     # Connect the generate button
     generate_btn.click(
         fn=generate_video,
-        inputs=[script_input, stock_keywords, language, voice_type],
+        inputs=[script_input, stock_keywords, language, voice_type, voice_name, use_anime_clips],
         outputs=video_output,
+    )
+    
+    # Update voice dropdown when language or voice type changes
+    language.change(
+        fn=update_voice_dropdown,
+        inputs=[language, voice_type],
+        outputs=voice_name,
+    )
+    
+    voice_type.change(
+        fn=update_voice_dropdown,
+        inputs=[language, voice_type],
+        outputs=voice_name,
+    )
+    
+    # Preview voice button
+    preview_btn.click(
+        fn=preview_voice,
+        inputs=[language, voice_type, voice_name],
+        outputs=voice_preview,
     )
 
 

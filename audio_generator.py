@@ -139,6 +139,7 @@ class AudioGenerator:
             voice: Voice display name from SUPPORTED_VOICES
         """
         self.voice = voice
+        self.voice_id = None  # Can be set directly for specific voice
         self.temp_dir = Path(TEMP_DIR)
         self.temp_dir.mkdir(exist_ok=True)
         self._edge_tts_available = None
@@ -163,7 +164,14 @@ class AudioGenerator:
         """Generate audio using Edge TTS"""
         import edge_tts
         
-        voice_id = EDGE_TTS_VOICES.get(self.voice, "en-US-ChristopherNeural")
+        # Use voice_id if set, otherwise look up from voice name
+        if self.voice_id:
+            voice_id = self.voice_id
+            print(f"      Using specific voice_id: {voice_id}")
+        else:
+            voice_id = EDGE_TTS_VOICES.get(self.voice, "en-US-ChristopherNeural")
+            print(f"      Using voice lookup: {self.voice} -> {voice_id}")
+        
         communicate = edge_tts.Communicate(
             text,
             voice_id,

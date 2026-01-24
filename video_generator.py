@@ -33,6 +33,7 @@ from animated_background import AnimatedBackgroundGenerator
 from stock_video_fetcher import StockVideoFetcher
 from audio_generator import AudioGenerator
 from translator import Translator
+from anime_video_fetcher import AnimeVideoFetcher
 
 
 class VideoGenerator:
@@ -43,6 +44,7 @@ class VideoGenerator:
         self.output_dir.mkdir(exist_ok=True)
         
         self.stock_fetcher = StockVideoFetcher(pexels_api_key)
+        self.anime_fetcher = AnimeVideoFetcher()
         self.bg_generator = AnimatedBackgroundGenerator()
         self.audio_generator = AudioGenerator()
         self.font_path = self._get_font_path()
@@ -238,6 +240,7 @@ class VideoGenerator:
         stock_keywords: List[str] = None,
         target_language: str = "en",
         progress_callback=None,
+        use_anime_clips: bool = False,
     ) -> str:
         """
         Generate video with stock videos/animations and full-screen captions.
@@ -249,6 +252,7 @@ class VideoGenerator:
             stock_keywords: Optional custom keywords for stock video search
             target_language: Language code for audio (captions stay in English)
             progress_callback: Optional callback function(progress, message) for progress updates
+            use_anime_clips: Whether to use anime clips from Trace Moe instead of Pexels
         """
         def report_progress(pct, msg):
             """Report progress if callback is provided"""
@@ -295,8 +299,30 @@ class VideoGenerator:
         report_progress(0.32, "Fetching background videos...")
         background_clips = []
         
-        # Try to fetch stock videos first
-        if use_stock_videos and self.stock_fetcher.api_key:
+        # Try anime clips if requested
+        if use_anime_clips:
+            # Use stock_keywords for anime search if provided
+            anime_keywords = stock_keywords[:3] if stock_keywords else None
+            if anime_keywords:
+                report_progress(0.35, f"Fetching anime clips for: {', '.join(anime_keywords)}...")
+            else:
+                report_progress(0.35, "Fetching random anime clips from Trace Moe...")
+            video_paths = self.anime_fetcher.fetch_anime_clips(count=3, keywords=anime_keywords)
+            
+            if video_paths:
+                report_progress(0.45, f"Processing {len(video_paths)} anime clips...")
+                for i, vpath in enumerate(video_paths):
+                    try:
+                        clip = VideoFileClip(vpath)
+                        clip = self.resize_video_to_fullscreen(clip)
+                        clip = clip.fx(vfx.colorx, 0.6)  # Slightly less dim for anime
+                        background_clips.append(clip)
+                        report_progress(0.45 + (i+1)*0.03, f"Processed anime clip {i+1}/{len(video_paths)}")
+                    except Exception as e:
+                        print(f"      Error loading anime clip: {e}")
+        
+        # Try to fetch stock videos if not using anime or anime failed
+        elif use_stock_videos and self.stock_fetcher.api_key:
             report_progress(0.35, "Searching Pexels for stock videos...")
             # Use custom keywords if provided, otherwise extract from script
             if stock_keywords:
