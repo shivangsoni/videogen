@@ -67,30 +67,46 @@ class VideoGenerator:
         return None
     
     def resize_video_to_fullscreen(self, clip: VideoFileClip) -> VideoFileClip:
-        """Resize and crop video to fill full screen (9:16 portrait)"""
-        target_ratio = VIDEO_WIDTH / VIDEO_HEIGHT  # 9:16
-        clip_ratio = clip.w / clip.h
+        """Resize and crop video to fill full screen (9:16 portrait) - no black bars"""
+        target_w = VIDEO_WIDTH   # 720
+        target_h = VIDEO_HEIGHT  # 1280
+        target_ratio = target_w / target_h  # 0.5625
         
-        if clip_ratio > target_ratio:
-            # Video is wider - crop sides
-            new_width = int(clip.h * target_ratio)
-            x_center = clip.w // 2
-            clip = clip.crop(
-                x1=x_center - new_width // 2,
-                x2=x_center + new_width // 2
-            )
-        else:
-            # Video is taller - crop top/bottom
-            new_height = int(clip.w / target_ratio)
-            y_center = clip.h // 2
-            clip = clip.crop(
-                y1=y_center - new_height // 2,
-                y2=y_center + new_height // 2
-            )
+        clip_w = clip.w
+        clip_h = clip.h
+        clip_ratio = clip_w / clip_h
         
-        # Resize to exact dimensions
-        clip = clip.resize((VIDEO_WIDTH, VIDEO_HEIGHT))
+        print(f"      Original: {clip_w}x{clip_h}, ratio: {clip_ratio:.3f}, target: {target_ratio:.3f}")
         
+        # Calculate scale factor to FILL the target (not fit)
+        # We want the smaller dimension to match, so we scale up
+        scale_w = target_w / clip_w
+        scale_h = target_h / clip_h
+        scale = max(scale_w, scale_h)  # Use larger scale to ensure full coverage
+        
+        new_w = int(clip_w * scale)
+        new_h = int(clip_h * scale)
+        
+        print(f"      Scaling by {scale:.3f} to: {new_w}x{new_h}")
+        clip = clip.resize(newsize=(new_w, new_h))
+        
+        # Now crop to exact target size (centered)
+        if new_w > target_w:
+            x1 = (new_w - target_w) // 2
+            clip = clip.crop(x1=x1, x2=x1 + target_w)
+            print(f"      Cropped width to {target_w}")
+        
+        if new_h > target_h:
+            y1 = (new_h - target_h) // 2
+            clip = clip.crop(y1=y1, y2=y1 + target_h)
+            print(f"      Cropped height to {target_h}")
+        
+        # Final safety resize to ensure exact dimensions
+        if clip.w != target_w or clip.h != target_h:
+            print(f"      Final resize from {clip.w}x{clip.h} to {target_w}x{target_h}")
+            clip = clip.resize(newsize=(target_w, target_h))
+        
+        print(f"      Final size: {clip.w}x{clip.h}")
         return clip
     
     def create_subtitle_caption(
@@ -221,6 +237,7 @@ class VideoGenerator:
         use_stock_videos: bool = True,
         stock_keywords: List[str] = None,
         target_language: str = "en",
+        progress_callback=None,
     ) -> str:
         """
         Generate video with stock videos/animations and full-screen captions.
@@ -231,72 +248,82 @@ class VideoGenerator:
             use_stock_videos: Whether to fetch stock videos
             stock_keywords: Optional custom keywords for stock video search
             target_language: Language code for audio (captions stay in English)
+            progress_callback: Optional callback function(progress, message) for progress updates
         """
+        def report_progress(pct, msg):
+            """Report progress if callback is provided"""
+            print(f"      [{pct:.0%}] {msg}")
+            if progress_callback:
+                progress_callback(pct, msg)
+        
         print("=" * 50)
         print("YOUTUBE SHORTS VIDEO GENERATOR")
         print("=" * 50)
         
-        # Step 1: Generate audio (translated if not English)
-        print("\n[1/4] Generating voiceover audio...")
+        # Step 1: Translate text (0% -> 10%)
+        report_progress(0.02, "Translating script...")
         full_text = get_full_narration_text(segments)
         
-        # Translate for TTS if target language is not English
         translator = Translator(target_language)
         translated_text = translator.translate(full_text)
         if target_language != "en" and not target_language.startswith("en"):
-            print(f"      Translated to: {target_language}")
+            report_progress(0.08, f"Translated to {target_language}")
+        else:
+            report_progress(0.08, "Using English audio")
         
+        # Step 2: Generate audio (10% -> 25%)
+        report_progress(0.10, "Generating voiceover audio...")
         audio_path = str(self.temp_dir / "narration.mp3")
         _, audio_duration = self.audio_generator.generate_audio(
-            translated_text,  # Use translated text for audio
+            translated_text,
             audio_path,
             rate="-5%"
         )
-        print(f"      Audio duration: {audio_duration:.2f}s")
+        report_progress(0.25, f"Audio ready ({audio_duration:.1f}s)")
         
-        # Step 2: Process script
-        print("\n[2/4] Processing script segments...")
+        # Step 3: Process script segments (25% -> 30%)
+        report_progress(0.27, "Processing captions...")
         all_lines = []
         for segment in segments:
             for line in segment.display_lines:
                 all_lines.append((line, segment.segment_type))
         
-        print(f"      Total caption lines: {len(all_lines)}")
         line_timings = self._calculate_line_timings(all_lines, audio_duration)
+        report_progress(0.30, f"Prepared {len(all_lines)} caption lines")
         
-        # Step 3: Get background videos/animations
-        print("\n[3/4] Getting background videos...")
+        # Step 4: Get background videos/animations (30% -> 55%)
+        report_progress(0.32, "Fetching background videos...")
         background_clips = []
         
         # Try to fetch stock videos first
         if use_stock_videos and self.stock_fetcher.api_key:
-            print("      Fetching stock videos from Pexels...")
+            report_progress(0.35, "Searching Pexels for stock videos...")
             # Use custom keywords if provided, otherwise extract from script
             if stock_keywords:
                 keywords = stock_keywords[:3]  # Limit to 3 keywords
-                print(f"      Using custom categories: {keywords}")
             else:
                 keywords = self.stock_fetcher.get_keywords_from_script(segments)
+            
+            report_progress(0.38, f"Downloading videos for: {', '.join(keywords[:2])}...")
             video_paths = self.stock_fetcher.fetch_videos(keywords=keywords, count=3)
             
             if video_paths:
-                print(f"      Downloaded {len(video_paths)} stock videos")
-                for vpath in video_paths:
+                report_progress(0.45, f"Processing {len(video_paths)} stock videos...")
+                for i, vpath in enumerate(video_paths):
                     try:
                         clip = VideoFileClip(vpath)
                         clip = self.resize_video_to_fullscreen(clip)
-                        # Darken video for better text readability
                         clip = clip.fx(vfx.colorx, 0.5)
                         background_clips.append(clip)
+                        report_progress(0.45 + (i+1)*0.03, f"Processed video {i+1}/{len(video_paths)}")
                     except Exception as e:
                         print(f"      Error loading video: {e}")
         
         # Fallback to animated backgrounds if no stock videos
         if not background_clips:
-            print("      Using animated backgrounds...")
+            report_progress(0.50, "Generating animated background...")
             styles = ['gradient_flow', 'particles', 'aurora', 'geometric_float']
             chosen_style = random.choice(styles)
-            print(f"      Animation style: {chosen_style}")
             
             animated_bg = self.bg_generator.generate_animated_background(
                 duration=audio_duration,
@@ -304,9 +331,10 @@ class VideoGenerator:
             )
             background_clips.append(animated_bg)
         
-        # Step 4: Build final video
-        print("\n[4/4] Building video...")
-        print(f"      Using {len(background_clips)} background clips")
+        report_progress(0.55, f"Background ready ({len(background_clips)} clips)")
+        
+        # Step 5: Build final video (55% -> 75%)
+        report_progress(0.57, "Arranging video clips...")
         
         # Distribute all stock videos evenly across the duration
         if len(background_clips) == 1:
@@ -314,57 +342,65 @@ class VideoGenerator:
         else:
             # Calculate duration for each clip
             time_per_clip = audio_duration / len(background_clips)
-            print(f"      Each clip duration: {time_per_clip:.2f}s")
             
             adjusted_clips = []
             for i, clip in enumerate(background_clips):
-                # Set each clip to play for equal duration
                 if clip.duration >= time_per_clip:
-                    # Trim if longer
                     adjusted = clip.subclip(0, time_per_clip)
                 else:
-                    # Loop if shorter
                     loops = int(time_per_clip / clip.duration) + 1
                     looped = concatenate_videoclips([clip] * loops)
                     adjusted = looped.subclip(0, time_per_clip)
                 
-                # Add crossfade transition
                 if i > 0:
                     adjusted = adjusted.crossfadein(0.5)
                 
                 adjusted_clips.append(adjusted)
             
-            # Concatenate all clips
             bg = concatenate_videoclips(adjusted_clips, method="compose")
             
-            # Trim to exact duration
             if bg.duration > audio_duration:
                 bg = bg.subclip(0, audio_duration)
         
         bg = bg.set_position((0, 0))
+        report_progress(0.62, "Video clips arranged")
         
-        # Create caption clips - SUBTITLE STYLE AT BOTTOM
+        # Step 6: Create captions (62% -> 70%)
+        report_progress(0.64, "Creating captions...")
         caption_clips = []
-        for text, seg_type, start_time, end_time in line_timings:
+        total_captions = len(line_timings)
+        for idx, (text, seg_type, start_time, end_time) in enumerate(line_timings):
             duration = end_time - start_time
             
-            # Font sizes - smaller captions
             if seg_type == 'hook':
-                font_size = 32  # Hook
+                font_size = 32
             elif seg_type == 'cta':
-                font_size = 30  # CTA
+                font_size = 30
             else:
-                font_size = 28  # Main content
+                font_size = 28
             
             caption_clip = self.create_caption_clip(
                 text, start_time, duration, font_size
             )
             caption_clips.append(caption_clip)
+            
+            if (idx + 1) % 3 == 0 or idx == total_captions - 1:
+                report_progress(0.64 + (idx/total_captions)*0.06, f"Caption {idx+1}/{total_captions}")
         
-        # Composite all layers
-        print("      Compositing layers...")
+        report_progress(0.70, "Captions created")
+        
+        # Step 7: Composite layers (70% -> 75%)
+        report_progress(0.72, "Compositing video layers...")
+        
+        # Create a solid black base layer to ensure no gaps
+        from moviepy.editor import ColorClip
+        black_base = ColorClip(size=(VIDEO_WIDTH, VIDEO_HEIGHT), color=(0, 0, 0), duration=audio_duration)
+        
+        # Ensure background is properly sized and positioned
+        bg = bg.set_position(('center', 'center'))
+        
         final_video = CompositeVideoClip(
-            [bg] + caption_clips,
+            [black_base, bg] + caption_clips,
             size=(VIDEO_WIDTH, VIDEO_HEIGHT)
         )
         
@@ -372,25 +408,39 @@ class VideoGenerator:
         audio = AudioFileClip(audio_path)
         final_video = final_video.set_audio(audio)
         final_video = final_video.set_duration(audio_duration)
+        report_progress(0.75, "Video composed with audio")
         
-        # Export
+        # Step 8: Export video (75% -> 98%)
         output_path = str(self.output_dir / output_filename)
-        print(f"      Exporting to: {output_path}")
+        report_progress(0.78, "Encoding video (this may take a minute)...")
+        
+        # Custom logger to track encoding progress
+        class ProgressLogger:
+            def __init__(self, callback, total_frames):
+                self.callback = callback
+                self.total_frames = total_frames
+                self.last_pct = 0.78
+            
+            def __call__(self, message, end='\n'):
+                pass  # Suppress default output
         
         final_video.write_videofile(
             output_path,
             fps=FPS,
             codec='libx264',
             audio_codec='aac',
-            bitrate='4000k',  # Reduced for faster encoding
+            bitrate='4000k',
             audio_bitrate='128k',
             threads=4,
-            preset='ultrafast',  # Much faster encoding
+            preset='ultrafast',
             verbose=False,
             logger=None
         )
         
+        report_progress(0.95, "Encoding complete!")
+        
         # Cleanup
+        report_progress(0.97, "Cleaning up temporary files...")
         final_video.close()
         audio.close()
         for clip in background_clips:
@@ -399,6 +449,7 @@ class VideoGenerator:
             except:
                 pass
         
+        report_progress(0.99, "Finalizing...")
         print("\n" + "=" * 50)
         print("SUCCESS! Video generated!")
         print(f"   Output: {output_path}")

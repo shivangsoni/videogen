@@ -5,3 +5,4 @@ numpy==1.26.3
 pydub==0.25.1
 requests==2.31.0
 edge-tts==6.1.9
+googletrans==4.0.0-rc1

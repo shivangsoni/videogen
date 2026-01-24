@@ -25,7 +25,8 @@ PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
 def generate_video(
     script_text: str,
     stock_keywords: str,
-    voice_style: str,
+    language: str,
+    voice_type: str,
     progress=gr.Progress()
 ) -> str:
     """Generate a YouTube Shorts video from script text."""
@@ -41,57 +42,42 @@ def generate_video(
     if stock_keywords.strip():
         keywords = [k.strip() for k in stock_keywords.split(",") if k.strip()]
     
-    # Map voice styles to gTTS language codes - supports multiple languages
-    from audio_generator import SUPPORTED_LANGUAGES
-    voice = SUPPORTED_LANGUAGES.get(voice_style, "en")
+    # Combine language and voice type (e.g., "Hindi" + "Male" -> "Hindi - Male")
+    voice = f"{language} - {voice_type}"
     
     try:
-        # Step 1: Initialize (0% -> 10%)
-        progress(0.0, desc="Step 1/5: Initializing...")
+        # Initialize
+        progress(0.01, desc="Initializing video generator...")
         generator = VideoGenerator(pexels_api_key=PEXELS_API_KEY)
         generator.audio_generator.voice = voice
-        progress(0.10, desc="Step 1/5: Initialization complete")
         
-        # Step 2: Parse script (10% -> 20%)
-        progress(0.15, desc="Step 2/5: Parsing script...")
+        # Parse script
+        progress(0.03, desc="Parsing script...")
         segments = parse_script(script_text)
         if not segments:
             raise gr.Error("Could not parse script. Check the format.")
-        progress(0.20, desc="Step 2/5: Script parsed")
         
         # Generate unique output filename
         job_id = uuid.uuid4().hex[:8]
         output_filename = f"short_{job_id}.mp4"
         
-        # Step 3: Generate audio (20% -> 40%)
-        progress(0.25, desc="Step 3/5: Generating voiceover audio...")
-        # Audio generation happens inside generate_video
-        progress(0.40, desc="Step 3/5: Audio generated")
+        # Create progress callback for real-time updates
+        def progress_callback(pct, msg):
+            progress(pct, desc=msg)
         
-        # Step 4: Fetch stock videos (40% -> 60%)
-        progress(0.45, desc="Step 4/5: Downloading stock videos...")
-        progress(0.55, desc="Step 4/5: Processing video backgrounds...")
-        progress(0.60, desc="Step 4/5: Videos ready")
-        
-        # Step 5: Build final video (60% -> 100%)
-        progress(0.65, desc="Step 5/5: Building video...")
-        
-        # Create video (voice is the target language code for translation)
+        # Generate video with real-time progress updates
         result_path = generator.generate_video(
             segments=segments,
             output_filename=output_filename,
             stock_keywords=keywords,
-            target_language=voice,  # Translate to this language for audio
+            target_language=voice,
+            progress_callback=progress_callback,
         )
         
-        progress(0.80, desc="Step 5/5: Encoding video...")
-        progress(0.90, desc="Step 5/5: Finalizing...")
-        progress(0.95, desc="Step 5/5: Cleaning up...")
+        progress(1.0, desc="✅ Complete! Video ready.")
         
         # Cleanup temp files
         generator.cleanup_temp_files()
-        
-        progress(1.0, desc="✅ Complete! Video ready.")
         
         return result_path
         
@@ -166,7 +152,17 @@ with gr.Blocks(
         margin-bottom: 2em;
     }
     .output-video {
-        max-height: 600px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 600px;
+    }
+    .output-video video {
+        max-height: 85vh !important;
+        height: auto !important;
+        width: auto !important;
+        max-width: 100% !important;
+        object-fit: contain;
     }
     """
 ) as demo:
@@ -204,31 +200,39 @@ Your call to action.""",
                     placeholder="e.g., dark aesthetic, city lights, motivation",
                     info="Comma-separated keywords for Pexels stock videos",
                 )
-                
-                voice_style = gr.Dropdown(
-                    label="🎙️ Audio Language (auto-translates)",
+            
+            with gr.Row():
+                language = gr.Dropdown(
+                    label="🌍 Language",
                     choices=[
-                        "English (US)",
-                        "English (UK)",
-                        "English (Australia)",
-                        "English (India)",
+                        "English",
                         "Hindi",
                         "French",
                         "German",
                         "Spanish",
                         "Portuguese",
                         "Italian",
+                        "Dutch",
                         "Japanese",
                         "Korean",
-                        "Chinese (Simplified)",
+                        "Chinese",
                         "Arabic",
                         "Russian",
-                        "Dutch",
-                        "Polish",
                         "Turkish",
+                        "Polish",
+                        "Swedish",
+                        "Norwegian",
+                        "Danish",
                     ],
-                    value="English (US)",
-                    info="Script will be auto-translated for voiceover. Captions stay in English.",
+                    value="English",
+                    info="Script auto-translates to selected language",
+                )
+                
+                voice_type = gr.Dropdown(
+                    label="🎙️ Voice Type",
+                    choices=["Male", "Female"],
+                    value="Male",
+                    info="Select male or female voice",
                 )
             
             generate_btn = gr.Button(
@@ -276,7 +280,7 @@ Your call to action.""",
     # Connect the generate button
     generate_btn.click(
         fn=generate_video,
-        inputs=[script_input, stock_keywords, voice_style],
+        inputs=[script_input, stock_keywords, language, voice_type],
         outputs=video_output,
     )
 

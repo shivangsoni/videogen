@@ -2,10 +2,10 @@
 Configuration settings for video generation
 """
 
-# Video dimensions (YouTube Shorts format: 9:16 aspect ratio)
-# Using 720p for faster encoding (can change to 1080x1920 for HD)
-VIDEO_WIDTH = 720
-VIDEO_HEIGHT = 1280
+# Video dimensions (Landscape 16:9 format for YouTube/desktop)
+# Using 720p for faster encoding (can change to 1920x1080 for HD)
+VIDEO_WIDTH = 1280
+VIDEO_HEIGHT = 720
 
 # Video settings
 FPS = 24  # Reduced from 30 for faster encoding

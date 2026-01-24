@@ -1,6 +1,6 @@
 """
-Audio generator using gTTS (Google Text-to-Speech) for reliable cloud deployment
-Falls back to Edge TTS if gTTS fails
+Audio generator with multiple voice options (Male/Female)
+Uses Edge TTS (Microsoft) for high-quality voices with gTTS fallback
 """
 
 import asyncio
@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
 
-from gtts import gTTS
 from moviepy.editor import AudioFileClip
 
 from config import TEMP_DIR
@@ -25,55 +24,110 @@ class AudioSegment:
     duration: float
 
 
-# Voice styles for gTTS (language codes)
-# Supports multiple languages including Hindi, French, German, Spanish, etc.
-VOICES = {
-    # English variants
-    "en": "en",
-    "en-us": "en",
-    "en-uk": "en-uk",
-    "en-au": "en-au",
-    "en-in": "en-in",
-    # Other languages
-    "hi": "hi",      # Hindi
-    "fr": "fr",      # French
-    "de": "de",      # German
-    "es": "es",      # Spanish
-    "pt": "pt",      # Portuguese
-    "it": "it",      # Italian
-    "ja": "ja",      # Japanese
-    "ko": "ko",      # Korean
-    "zh": "zh-CN",   # Chinese (Simplified)
-    "ar": "ar",      # Arabic
-    "ru": "ru",      # Russian
-    "nl": "nl",      # Dutch
-    "pl": "pl",      # Polish
-    "tr": "tr",      # Turkish
+# Edge TTS voices - high quality, multiple male/female options per language
+EDGE_TTS_VOICES = {
+    # English voices
+    "English - Male": "en-US-ChristopherNeural",
+    "English - Female": "en-US-JennyNeural",
+    # Hindi voices
+    "Hindi - Male": "hi-IN-MadhurNeural",
+    "Hindi - Female": "hi-IN-SwaraNeural",
+    # Spanish voices
+    "Spanish - Male": "es-ES-AlvaroNeural",
+    "Spanish - Female": "es-ES-ElviraNeural",
+    # French voices
+    "French - Male": "fr-FR-HenriNeural",
+    "French - Female": "fr-FR-DeniseNeural",
+    # German voices
+    "German - Male": "de-DE-ConradNeural",
+    "German - Female": "de-DE-KatjaNeural",
+    # Portuguese voices
+    "Portuguese - Male": "pt-BR-AntonioNeural",
+    "Portuguese - Female": "pt-BR-FranciscaNeural",
+    # Italian voices
+    "Italian - Male": "it-IT-DiegoNeural",
+    "Italian - Female": "it-IT-ElsaNeural",
+    # Japanese voices
+    "Japanese - Male": "ja-JP-KeitaNeural",
+    "Japanese - Female": "ja-JP-NanamiNeural",
+    # Korean voices
+    "Korean - Male": "ko-KR-InJoonNeural",
+    "Korean - Female": "ko-KR-SunHiNeural",
+    # Chinese voices
+    "Chinese - Male": "zh-CN-YunyangNeural",
+    "Chinese - Female": "zh-CN-XiaoxiaoNeural",
+    # Arabic voices
+    "Arabic - Male": "ar-SA-HamedNeural",
+    "Arabic - Female": "ar-SA-ZariyahNeural",
+    # Russian voices
+    "Russian - Male": "ru-RU-DmitryNeural",
+    "Russian - Female": "ru-RU-SvetlanaNeural",
+    # Dutch voices
+    "Dutch - Male": "nl-NL-MaartenNeural",
+    "Dutch - Female": "nl-NL-ColetteNeural",
+    # Turkish voices
+    "Turkish - Male": "tr-TR-AhmetNeural",
+    "Turkish - Female": "tr-TR-EmelNeural",
+    # Polish voices
+    "Polish - Male": "pl-PL-MarekNeural",
+    "Polish - Female": "pl-PL-ZofiaNeural",
+    # Swedish voices
+    "Swedish - Male": "sv-SE-MattiasNeural",
+    "Swedish - Female": "sv-SE-SofieNeural",
+    # Norwegian voices
+    "Norwegian - Male": "nb-NO-FinnNeural",
+    "Norwegian - Female": "nb-NO-PernilleNeural",
+    # Danish voices
+    "Danish - Male": "da-DK-JeppeNeural",
+    "Danish - Female": "da-DK-ChristelNeural",
 }
 
-# Supported languages with display names
-SUPPORTED_LANGUAGES = {
-    "English (US)": "en",
-    "English (UK)": "en-uk",
-    "English (Australia)": "en-au",
-    "English (India)": "en-in",
-    "Hindi": "hi",
-    "French": "fr",
-    "German": "de",
-    "Spanish": "es",
-    "Portuguese": "pt",
-    "Italian": "it",
-    "Japanese": "ja",
-    "Korean": "ko",
-    "Chinese (Simplified)": "zh-CN",
-    "Arabic": "ar",
-    "Russian": "ru",
-    "Dutch": "nl",
-    "Polish": "pl",
-    "Turkish": "tr",
+# gTTS fallback - language codes only (no voice variety)
+GTTS_LANGUAGES = {
+    "English - Male (US, Guy)": "en",
+    "English - Male (US, Deep)": "en",
+    "English - Male (UK)": "en-uk",
+    "English - Female (US, Jenny)": "en",
+    "English - Female (US, Aria)": "en",
+    "English - Female (UK)": "en-uk",
+    "English - Female (Australia)": "en-au",
+    "English - Male (India)": "en-in",
+    "English - Female (India)": "en-in",
+    "Hindi - Male": "hi",
+    "Hindi - Female": "hi",
+    "Spanish - Male": "es",
+    "Spanish - Female": "es",
+    "French - Male": "fr",
+    "French - Female": "fr",
+    "German - Male": "de",
+    "German - Female": "de",
+    "Portuguese - Male": "pt",
+    "Portuguese - Female": "pt",
+    "Italian - Male": "it",
+    "Italian - Female": "it",
+    "Japanese - Male": "ja",
+    "Japanese - Female": "ja",
+    "Korean - Male": "ko",
+    "Korean - Female": "ko",
+    "Chinese - Male": "zh-CN",
+    "Chinese - Female": "zh-CN",
+    "Arabic - Male": "ar",
+    "Arabic - Female": "ar",
+    "Russian - Male": "ru",
+    "Russian - Female": "ru",
+    "Dutch - Male": "nl",
+    "Dutch - Female": "nl",
+    "Turkish - Male": "tr",
+    "Turkish - Female": "tr",
 }
 
-DEFAULT_VOICE = "en"
+# Export for UI - list of voice display names
+SUPPORTED_VOICES = list(EDGE_TTS_VOICES.keys())
+
+# For backward compatibility
+SUPPORTED_LANGUAGES = {v: GTTS_LANGUAGES.get(v, "en") for v in SUPPORTED_VOICES}
+
+DEFAULT_VOICE = "English - Male (US, Deep)"
 
 
 class AudioGenerator:
@@ -82,11 +136,42 @@ class AudioGenerator:
         Initialize audio generator.
         
         Args:
-            voice: Language code for gTTS
+            voice: Voice display name from SUPPORTED_VOICES
         """
         self.voice = voice
         self.temp_dir = Path(TEMP_DIR)
         self.temp_dir.mkdir(exist_ok=True)
+        self._edge_tts_available = None
+    
+    def _check_edge_tts(self) -> bool:
+        """Check if edge-tts is available and working"""
+        if self._edge_tts_available is None:
+            try:
+                import edge_tts
+                self._edge_tts_available = True
+            except ImportError:
+                self._edge_tts_available = False
+        return self._edge_tts_available
+    
+    async def _generate_audio_edge_tts(
+        self,
+        text: str,
+        output_path: str,
+        rate: str = "+0%",
+        pitch: str = "+0Hz"
+    ) -> str:
+        """Generate audio using Edge TTS"""
+        import edge_tts
+        
+        voice_id = EDGE_TTS_VOICES.get(self.voice, "en-US-ChristopherNeural")
+        communicate = edge_tts.Communicate(
+            text,
+            voice_id,
+            rate=rate,
+            pitch=pitch
+        )
+        await communicate.save(output_path)
+        return output_path
     
     def _generate_audio_gtts(
         self,
@@ -94,8 +179,11 @@ class AudioGenerator:
         output_path: str,
         slow: bool = False
     ) -> str:
-        """Generate audio file from text using gTTS"""
-        tts = gTTS(text=text, lang=self.voice, slow=slow)
+        """Generate audio using gTTS (fallback)"""
+        from gtts import gTTS
+        
+        lang = GTTS_LANGUAGES.get(self.voice, "en")
+        tts = gTTS(text=text, lang=lang, slow=slow)
         tts.save(output_path)
         return output_path
     
@@ -108,21 +196,32 @@ class AudioGenerator:
     ) -> Tuple[str, float]:
         """
         Generate audio and return path and duration.
+        Tries Edge TTS first (high quality voices), falls back to gTTS.
         
         Args:
             text: Text to convert to speech
             output_path: Where to save the audio
-            rate: Speed adjustment (ignored for gTTS, kept for API compatibility)
-            pitch: Pitch adjustment (ignored for gTTS, kept for API compatibility)
+            rate: Speed adjustment for Edge TTS
+            pitch: Pitch adjustment for Edge TTS
             
         Returns:
             Tuple of (audio_path, duration_in_seconds)
         """
-        # Use gTTS (more reliable on cloud)
-        slow = "-" in rate  # If rate is negative, use slow mode
+        # Try Edge TTS first (better quality, voice variety)
+        if self._check_edge_tts():
+            try:
+                asyncio.run(self._generate_audio_edge_tts(text, output_path, rate, pitch))
+                audio = AudioFileClip(output_path)
+                duration = audio.duration
+                audio.close()
+                return output_path, duration
+            except Exception as e:
+                print(f"Edge TTS failed: {e}, falling back to gTTS")
+        
+        # Fallback to gTTS
+        slow = "-" in rate
         self._generate_audio_gtts(text, output_path, slow=slow)
         
-        # Get duration
         audio = AudioFileClip(output_path)
         duration = audio.duration
         audio.close()
@@ -132,7 +231,7 @@ class AudioGenerator:
     def generate_segment_audio(
         self,
         segments,
-        rate: str = "-5%"  # Slightly slower for clarity
+        rate: str = "-5%"
     ) -> Tuple[List[AudioSegment], str, float]:
         """
         Generate audio for each segment and combine them.
@@ -143,14 +242,11 @@ class AudioGenerator:
         audio_segments = []
         current_time = 0.0
         
-        # Generate audio for each segment
         for i, segment in enumerate(segments):
-            # Clean text for TTS
             text = segment.text.strip()
             if not text:
                 continue
             
-            # Generate individual segment audio
             segment_path = str(self.temp_dir / f"segment_{i}.mp3")
             _, duration = self.generate_audio(text, segment_path, rate=rate)
             
@@ -162,125 +258,22 @@ class AudioGenerator:
                 duration=duration
             ))
             
-            current_time += duration + 0.3  # Small gap between segments
+            current_time += duration
         
-        # Combine all audio files
-        combined_path = str(self.temp_dir / "combined_audio.mp3")
-        total_duration = self._combine_audio_files(audio_segments, combined_path)
-        
-        return audio_segments, combined_path, total_duration
-    
-    def _combine_audio_files(
-        self,
-        audio_segments: List[AudioSegment],
-        output_path: str
-    ) -> float:
-        """Combine multiple audio files with gaps"""
-        from moviepy.editor import concatenate_audioclips, AudioFileClip
-        from moviepy.audio.AudioClip import AudioClip
-        
-        clips = []
-        
-        for i, seg in enumerate(audio_segments):
-            # Add the audio segment
-            clip = AudioFileClip(seg.audio_path)
-            clips.append(clip)
+        # Combine segments
+        if audio_segments:
+            from moviepy.editor import concatenate_audioclips
             
-            # Add silence gap (except after last segment)
-            if i < len(audio_segments) - 1:
-                # Create 0.3 second silence
-                silence = AudioClip(lambda t: 0, duration=0.3, fps=44100)
-                clips.append(silence)
-        
-        # Concatenate all clips
-        if clips:
-            final_audio = concatenate_audioclips(clips)
-            final_audio.write_audiofile(output_path, fps=44100, verbose=False, logger=None)
-            duration = final_audio.duration
-            final_audio.close()
+            clips = [AudioFileClip(seg.audio_path) for seg in audio_segments]
+            combined = concatenate_audioclips(clips)
+            combined_path = str(self.temp_dir / "combined_audio.mp3")
+            combined.write_audiofile(combined_path, verbose=False, logger=None)
             
-            # Close individual clips
+            total_duration = combined.duration
+            combined.close()
             for clip in clips:
-                try:
-                    clip.close()
-                except:
-                    pass
+                clip.close()
             
-            return duration
+            return audio_segments, combined_path, total_duration
         
-        return 0.0
-    
-    def generate_line_timings(
-        self,
-        display_lines: List[str],
-        total_duration: float
-    ) -> List[Tuple[str, float, float]]:
-        """
-        Generate timing for each display line based on word count.
-        
-        Returns:
-            List of (text, start_time, end_time)
-        """
-        # Calculate total words
-        total_words = sum(len(line.split()) for line in display_lines)
-        
-        if total_words == 0:
-            return []
-        
-        # Time per word
-        time_per_word = total_duration / total_words
-        
-        timings = []
-        current_time = 0.0
-        
-        for line in display_lines:
-            word_count = len(line.split())
-            # Minimum 1.5 seconds per line, based on word count otherwise
-            line_duration = max(1.5, word_count * time_per_word)
-            
-            timings.append((line, current_time, current_time + line_duration))
-            current_time += line_duration
-        
-        # Adjust to fit total duration
-        if timings:
-            scale = total_duration / current_time
-            timings = [
-                (text, start * scale, end * scale)
-                for text, start, end in timings
-            ]
-        
-        return timings
-
-
-def list_available_voices():
-    """List all available Edge TTS voices"""
-    async def get_voices():
-        voices = await edge_tts.list_voices()
-        return voices
-    
-    voices = asyncio.run(get_voices())
-    
-    # Filter English voices
-    english_voices = [v for v in voices if v["Locale"].startswith("en-")]
-    
-    print("Available English voices:")
-    for v in english_voices:
-        print(f"  {v['ShortName']}: {v['Gender']} - {v['Locale']}")
-
-
-if __name__ == "__main__":
-    # Test audio generation
-    generator = AudioGenerator()
-    
-    test_text = "Here's how to handle your life. No motivation required."
-    output_path = "temp/test_audio.mp3"
-    
-    os.makedirs("temp", exist_ok=True)
-    
-    path, duration = generator.generate_audio(test_text, output_path)
-    print(f"Generated audio: {path}")
-    print(f"Duration: {duration:.2f}s")
-    
-    # List voices
-    print("\n")
-    list_available_voices()
+        return [], "", 0.0

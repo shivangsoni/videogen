@@ -48,7 +48,7 @@ class StockVideoFetcher:
         self,
         keywords: List[str] = None,
         count: int = 3,
-        orientation: str = "portrait"
+        orientation: str = "landscape"
     ) -> List[str]:
         """
         Fetch stock videos from Pexels.
@@ -56,7 +56,7 @@ class StockVideoFetcher:
         Args:
             keywords: Search keywords
             count: Number of videos to fetch
-            orientation: 'portrait' for shorts, 'landscape' for regular
+            orientation: 'landscape' for regular, 'portrait' for shorts
             
         Returns:
             List of paths to downloaded videos
@@ -91,9 +91,9 @@ class StockVideoFetcher:
             headers = {"Authorization": self.api_key}
             params = {
                 "query": keyword,
-                "per_page": 10,
+                "per_page": 15,
                 "orientation": orientation,
-                "size": "medium"  # medium quality for faster download
+                "size": "large"  # Request large/HD quality
             }
             
             response = requests.get(PEXELS_VIDEO_API, headers=headers, params=params, timeout=15)
@@ -109,28 +109,52 @@ class StockVideoFetcher:
                 print(f"      No videos found for: {keyword}")
                 return None
             
-            # Pick a random video from results
-            video = random.choice(videos)
+            # Filter for videos that have landscape versions first
+            landscape_videos = []
+            for v in videos:
+                for vf in v.get("video_files", []):
+                    if vf.get("width", 0) > vf.get("height", 0) and vf.get("width", 0) >= 1280:
+                        landscape_videos.append(v)
+                        break
             
-            # Find the best quality file (prefer HD, portrait)
+            # Use landscape videos if available, otherwise use any
+            video_pool = landscape_videos if landscape_videos else videos
+            video = random.choice(video_pool)
+            
+            # Find the best quality file (prefer HD, landscape, high resolution)
             video_files = video.get("video_files", [])
             
-            # Sort by quality - prefer HD portrait
+            # Sort by resolution - prefer landscape HD with width >= 1280
             best_file = None
+            best_resolution = 0
+            
             for vf in video_files:
-                if vf.get("quality") == "hd":
-                    # Check if portrait orientation
-                    if vf.get("height", 0) > vf.get("width", 0):
+                height = vf.get("height", 0)
+                width = vf.get("width", 0)
+                is_landscape = width > height
+                resolution = height * width
+                
+                # Prefer landscape HD videos with good resolution
+                if is_landscape and width >= 1280:
+                    if resolution > best_resolution:
+                        best_file = vf
+                        best_resolution = resolution
+            
+            # Fallback: any HD file
+            if best_file is None:
+                for vf in video_files:
+                    if vf.get("quality") == "hd":
                         best_file = vf
                         break
-                    elif best_file is None:
-                        best_file = vf
             
+            # Last fallback: highest resolution available
             if best_file is None and video_files:
-                best_file = video_files[0]
+                best_file = max(video_files, key=lambda x: x.get("height", 0) * x.get("width", 0))
             
             if best_file is None:
                 return None
+            
+            print(f"      Selected: {best_file.get('width')}x{best_file.get('height')} ({best_file.get('quality')})")
             
             # Download the video
             video_url = best_file.get("link")
