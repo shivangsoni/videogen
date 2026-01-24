@@ -1,36 +1,15 @@
 """
 Translation module for multilingual video generation
-Uses Google Translate API directly via HTTP requests
+Uses Google Translate via multiple methods for reliability
 """
 
 import requests
 import json
 import re
+import html
 from typing import Optional
 from urllib.parse import quote
 
-
-# Language code mapping for googletrans
-LANGUAGE_CODES = {
-    "en": "en",
-    "hi": "hi",
-    "fr": "fr",
-    "de": "de",
-    "es": "es",
-    "pt": "pt",
-    "it": "it",
-    "ja": "ja",
-    "ko": "ko",
-    "zh-CN": "zh-cn",
-    "ar": "ar",
-    "ru": "ru",
-    "nl": "nl",
-    "pl": "pl",
-    "tr": "tr",
-    "sv": "sv",
-    "no": "no",
-    "da": "da",
-}
 
 # Map voice display names to language codes for translation
 VOICE_TO_LANGUAGE = {
@@ -74,10 +53,7 @@ VOICE_TO_LANGUAGE = {
 
 
 class Translator:
-    """Handles text translation for multilingual TTS using Google Translate directly"""
-    
-    # Google Translate API endpoint
-    TRANSLATE_URL = "https://translate.googleapis.com/translate_a/single"
+    """Handles text translation using Google Translate"""
     
     def __init__(self, target_language: str = "en"):
         """
@@ -92,55 +68,83 @@ class Translator:
         else:
             self.target_language = target_language
         
-        # Map to language code
-        self.target_lang_code = LANGUAGE_CODES.get(self.target_language, "en")
-        
         # Session for connection reuse
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         })
     
-    def _google_translate(self, text: str, target: str, source: str = "en") -> str:
-        """
-        Call Google Translate API directly.
-        
-        Args:
-            text: Text to translate
-            target: Target language code
-            source: Source language code
+    def _translate_method1(self, text: str, target: str) -> Optional[str]:
+        """Method 1: Google Translate API (translate.googleapis.com)"""
+        try:
+            url = "https://translate.googleapis.com/translate_a/single"
+            params = {
+                'client': 'gtx',
+                'sl': 'en',
+                'tl': target,
+                'dt': 't',
+                'q': text,
+            }
             
-        Returns:
-            Translated text
-        """
-        params = {
-            'client': 'gtx',
-            'sl': source,
-            'tl': target,
-            'dt': 't',
-            'q': text,
-        }
-        
-        response = self.session.get(self.TRANSLATE_URL, params=params, timeout=10)
-        response.raise_for_status()
-        
-        # Parse the response - it's a nested JSON array
-        result = response.json()
-        
-        # Extract translated text from response
-        # Response format: [[["translated text","original text",null,null,10]],null,"en",...]
-        if result and isinstance(result, list) and result[0]:
-            translated_parts = []
-            for part in result[0]:
-                if part and isinstance(part, list) and part[0]:
-                    translated_parts.append(part[0])
-            return ''.join(translated_parts)
-        
-        return text
+            response = self.session.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                result = response.json()
+                if result and isinstance(result, list) and result[0]:
+                    translated = ''.join(
+                        part[0] for part in result[0] 
+                        if part and isinstance(part, list) and part[0]
+                    )
+                    if translated:
+                        return translated
+        except Exception as e:
+            print(f"      Method 1 failed: {e}")
+        return None
+    
+    def _translate_method2(self, text: str, target: str) -> Optional[str]:
+        """Method 2: Google Translate (clients5.google.com)"""
+        try:
+            url = "https://clients5.google.com/translate_a/t"
+            params = {
+                'client': 'dict-chrome-ex',
+                'sl': 'en',
+                'tl': target,
+                'q': text,
+            }
+            
+            response = self.session.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                result = response.json()
+                if result and isinstance(result, list):
+                    # Format: [["translated text"]]
+                    if result[0] and isinstance(result[0], list):
+                        return result[0][0]
+                    elif isinstance(result[0], str):
+                        return result[0]
+        except Exception as e:
+            print(f"      Method 2 failed: {e}")
+        return None
+    
+    def _translate_method3(self, text: str, target: str) -> Optional[str]:
+        """Method 3: Google Translate web scraping fallback"""
+        try:
+            encoded_text = quote(text)
+            url = f"https://translate.google.com/m?sl=en&tl={target}&q={encoded_text}"
+            
+            response = self.session.get(url, timeout=10)
+            if response.status_code == 200:
+                # Extract translation from HTML
+                match = re.search(r'class="result-container">(.*?)</div>', response.text)
+                if match:
+                    translated = html.unescape(match.group(1))
+                    return translated
+        except Exception as e:
+            print(f"      Method 3 failed: {e}")
+        return None
     
     def translate(self, text: str) -> str:
         """
         Translate text from English to target language using Google Translate.
+        Tries multiple methods for reliability.
         
         Args:
             text: English text to translate
@@ -156,11 +160,28 @@ class Translator:
         if not text or not text.strip():
             return text
         
-        try:
-            return self._google_translate(text, self.target_lang_code, "en")
-        except Exception as e:
-            print(f"Translation error: {e}")
-            return text  # Return original on error
+        target = self.target_language
+        
+        # Try method 1
+        result = self._translate_method1(text, target)
+        if result:
+            print(f"      Translated: '{text[:30]}...' -> '{result[:30]}...'")
+            return result
+        
+        # Try method 2
+        result = self._translate_method2(text, target)
+        if result:
+            print(f"      Translated (m2): '{text[:30]}...' -> '{result[:30]}...'")
+            return result
+        
+        # Try method 3
+        result = self._translate_method3(text, target)
+        if result:
+            print(f"      Translated (m3): '{text[:30]}...' -> '{result[:30]}...'")
+            return result
+        
+        print(f"      Translation failed, using original: '{text[:30]}...'")
+        return text
     
     def translate_segments(self, segments: list) -> list:
         """

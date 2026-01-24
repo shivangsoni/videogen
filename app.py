@@ -7,6 +7,10 @@ import uuid
 import threading
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file, url_for
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add project to path
 import sys
@@ -17,10 +21,10 @@ from video_generator import VideoGenerator
 from stock_video_fetcher import StockVideoFetcher
 
 app = Flask(__name__)
-app.secret_key = 'youtube-shorts-generator-secret-key'
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'youtube-shorts-generator-secret-key')
 
-# Configuration
-PEXELS_API_KEY = "iHd7xRYSd17iBTtVYecT4519k88ZMCYPmLWRrM6Sg2dy22EMdkoVQk0i"
+# Configuration - Load from environment variables
+PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
 OUTPUT_DIR = Path(__file__).parent / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
