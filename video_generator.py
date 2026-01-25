@@ -277,7 +277,11 @@ class VideoGenerator:
         
         # Step 2: Generate audio (10% -> 25%)
         report_progress(0.10, "Generating voiceover audio...")
-        audio_path = str(self.temp_dir / "narration.mp3")
+        # Use unique filename to prevent reusing old audio when voice changes
+        import uuid
+        audio_path = str(self.temp_dir / f"narration_{uuid.uuid4().hex[:8]}.mp3")
+        print(f"      [VideoGenerator] Generating audio to: {audio_path}")
+        print(f"      [VideoGenerator] Using voice_id: {self.audio_generator.voice_id}")
         _, audio_duration = self.audio_generator.generate_audio(
             translated_text,
             audio_path,

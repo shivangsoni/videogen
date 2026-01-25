@@ -211,6 +211,8 @@ def generate_video(
     # Get the specific voice ID
     voice_id = get_voice_id(language, voice_type, voice_name)
     voice = f"{language} - {voice_type}"  # For translation
+    print(f"[generate_video] Selected: language={language}, voice_type={voice_type}, voice_name={voice_name}")
+    print(f"[generate_video] voice_id resolved to: {voice_id}")
     
     try:
         # Initialize
@@ -218,6 +220,7 @@ def generate_video(
         generator = VideoGenerator(pexels_api_key=PEXELS_API_KEY)
         generator.audio_generator.voice = voice
         generator.audio_generator.voice_id = voice_id  # Use specific voice ID
+        print(f"[generate_video] Set audio_generator.voice_id = {generator.audio_generator.voice_id}")
         
         # Parse script
         progress(0.03, desc="Parsing script...")

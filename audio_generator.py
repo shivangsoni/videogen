@@ -9,6 +9,14 @@ from pathlib import Path
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
 
+# Apply nest_asyncio at module load to fix asyncio in HF Spaces/Gradio
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+    print("[AudioGenerator] nest_asyncio applied successfully")
+except ImportError:
+    print("[AudioGenerator] nest_asyncio not available")
+
 from moviepy.editor import AudioFileClip
 
 from config import TEMP_DIR
@@ -215,18 +223,28 @@ class AudioGenerator:
         Returns:
             Tuple of (audio_path, duration_in_seconds)
         """
+        print(f"      [AudioGenerator] voice={self.voice}, voice_id={self.voice_id}")
+        
         # Try Edge TTS first (better quality, voice variety)
         if self._check_edge_tts():
             try:
-                asyncio.run(self._generate_audio_edge_tts(text, output_path, rate, pitch))
+                # Use get_event_loop which works with nest_asyncio
+                loop = asyncio.get_event_loop()
+                print(f"      [AudioGenerator] Starting Edge TTS with loop={loop}, voice_id={self.voice_id}")
+                loop.run_until_complete(self._generate_audio_edge_tts(text, output_path, rate, pitch))
+                print(f"      [AudioGenerator] Edge TTS SUCCESS with voice_id={self.voice_id}")
                 audio = AudioFileClip(output_path)
                 duration = audio.duration
                 audio.close()
                 return output_path, duration
             except Exception as e:
-                print(f"Edge TTS failed: {e}, falling back to gTTS")
+                import traceback
+                print(f"      [AudioGenerator] Edge TTS FAILED: {type(e).__name__}: {e}")
+                print(f"      [AudioGenerator] Traceback: {traceback.format_exc()}")
+                print(f"      [AudioGenerator] Falling back to gTTS...")
         
-        # Fallback to gTTS
+        # Fallback to gTTS (NOTE: gTTS has only ONE voice per language!)
+        print(f"      [AudioGenerator] Using gTTS fallback (voice variety NOT available)")
         slow = "-" in rate
         self._generate_audio_gtts(text, output_path, slow=slow)
         
