@@ -224,7 +224,7 @@ def generate_video_for_language(
         # Move to desired location
         if result_path and Path(result_path).exists():
             shutil.move(result_path, output_path)
-            print(f"    ✓ Saved to: {output_path}")
+            print(f"    [OK] Saved to: {output_path}")
             generator.cleanup_temp_files()
             return output_path
         
@@ -287,7 +287,7 @@ class YouTubePublisher:
             
             self.credentials = creds
             self.youtube = build('youtube', 'v3', credentials=creds)
-            print(f"✓ Authenticated as: {account_name}")
+            print(f"[OK] Authenticated as: {account_name}")
             return True
             
         except ImportError:
@@ -316,7 +316,7 @@ class YouTubePublisher:
             creds_file.write_text(credentials.to_json())
             
             self.accounts[account_name] = creds_file
-            print(f"✓ Account '{account_name}' saved successfully")
+            print(f"[OK] Account '{account_name}' saved successfully")
             return True
             
         except Exception as e:
@@ -381,7 +381,7 @@ class YouTubePublisher:
             
             video_id = response.get('id')
             video_url = f"https://youtube.com/shorts/{video_id}"
-            print(f"  ✓ Published: {video_url}")
+            print(f"  [OK] Published: {video_url}")
             
             return video_id
             
@@ -643,7 +643,7 @@ def main():
     for result in all_results:
         print(f"\n{result['folder']}:")
         for video in result["videos"]:
-            status_icon = "✓" if video["status"] in ("generated", "exists") else "⊘" if video["status"] == "skipped" else "✗"
+            status_icon = "[OK]" if video["status"] in ("generated", "exists") else "[SKIP]" if video["status"] == "skipped" else "[FAIL]"
             print(f"  {status_icon} {video['language']}: {video['status']}")
     
     print("\nDone!")
