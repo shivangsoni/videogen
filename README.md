@@ -2,13 +2,20 @@
 
 A Python tool to generate faceless YouTube Shorts (30-60 second videos) from text scripts. Perfect for creating motivational content, tips, and educational shorts.
 
+## 🌐 Live Demo
+
+**Try the UI version on Hugging Face Spaces:**
+👉 [https://huggingface.co/spaces/shison/youtube-shorts-generator](https://huggingface.co/spaces/shison/youtube-shorts-generator)
+
 ## Features
 
 - 🎬 Generates vertical videos (1080x1920) optimized for YouTube Shorts
-- 🗣️ Automatic text-to-speech narration using Google TTS (free)
+- 🗣️ Automatic text-to-speech narration using Edge TTS (19 languages)
 - ✨ Animated text overlays with fade transitions
-- 🎨 Dark themed backgrounds perfect for text-based content
+- 🎨 Stock video backgrounds from Pexels
 - 📝 Simple script format for easy content creation
+- 🌍 **Multi-language support** - 19 languages with native voices
+- 📤 **YouTube Auto-Publishing** - Publish directly to YouTube
 - 🆓 100% free - uses open source libraries only
 
 ## Installation
@@ -113,6 +120,94 @@ The generator will use system fonts. If text doesn't appear correctly, install A
 
 ### Video too long/short
 Adjust `TEXT_DISPLAY_TIME` in `config.py` or modify your script length.
+
+## Batch Publishing (All Languages)
+
+Generate and publish videos in **19 languages** automatically:
+
+### Setup YouTube OAuth
+
+1. Create a project in [Google Cloud Console](https://console.cloud.google.com/)
+2. Enable YouTube Data API v3
+3. Create OAuth 2.0 credentials (Desktop App)
+4. Download `client_secrets.json` to the project folder
+5. Setup your YouTube account:
+   ```bash
+   python batch_video_generator.py --setup-account myaccount client_secrets.json
+   ```
+
+### Folder Structure
+
+Create your content in `youtubeshorts/` folder:
+```
+youtubeshorts/
+    My Video Topic/
+        script.txt          # Your video script
+        metadata.txt         # Keywords for stock videos
+        youtube_publish.txt  # Title and description
+```
+
+**script.txt:**
+```
+Hook (0–2s):
+Your attention-grabbing opening.
+
+Core:
+Main content here.
+Each line becomes a caption.
+
+End (CTA):
+Follow for more!
+```
+
+**metadata.txt:**
+```
+keywords: motivation, success, mindset
+```
+
+**youtube_publish.txt:**
+```
+title: Your Video Title Here
+description: Your video description.
+#shorts #viral
+```
+
+### Publish All Languages
+
+```bash
+# Publish to all 19 languages (one at a time)
+python publish_all.py "My Video Topic" myaccount
+
+# Publish specific languages only
+python publish_all.py "My Video Topic" myaccount "English,Hindi,Spanish"
+
+# Generate single language
+python batch_video_generator.py --folder "My Video Topic" --languages "English" --publish --account myaccount
+```
+
+### Supported Languages
+
+| Language | Code | Voice |
+|----------|------|-------|
+| English | en | en-US-JennyNeural |
+| Hindi | hi | hi-IN-SwaraNeural |
+| Kannada | kn | kn-IN-SapnaNeural |
+| Spanish | es | es-ES-ElviraNeural |
+| French | fr | fr-FR-DeniseNeural |
+| German | de | de-DE-KatjaNeural |
+| Portuguese | pt | pt-BR-FranciscaNeural |
+| Italian | it | it-IT-ElsaNeural |
+| Japanese | ja | ja-JP-NanamiNeural |
+| Korean | ko | ko-KR-SunHiNeural |
+| Chinese | zh | zh-CN-XiaoxiaoNeural |
+| Arabic | ar | ar-SA-ZariyahNeural |
+| Russian | ru | ru-RU-SvetlanaNeural |
+| Dutch | nl | nl-NL-ColetteNeural |
+| Turkish | tr | tr-TR-EmelNeural |
+| Polish | pl | pl-PL-AgnieszkaNeural |
+| Vietnamese | vi | vi-VN-HoaiMyNeural |
+| Thai | th | th-TH-PremwadeeNeural |
+| Indonesian | id | id-ID-GadisNeural |
 
 ## License
 

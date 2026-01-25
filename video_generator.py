@@ -4,9 +4,13 @@ Video Generator with stock videos/animations and full-screen captions
 
 import os
 import random
+import signal
 import textwrap
 from pathlib import Path
 from typing import List, Tuple, Optional
+
+# Ignore SIGINT during video processing
+signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
