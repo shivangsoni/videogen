@@ -3,12 +3,26 @@ Translation module for multilingual video generation
 Uses Google Translate via multiple methods for reliability
 """
 
+import os
 import requests
 import json
 import re
 import html
 from typing import Optional
 from urllib.parse import quote
+
+# Fix Windows console encoding
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+
+# Safe print function for Windows console (handles non-ASCII characters)
+def safe_print(msg: str):
+    """Print safely on Windows by encoding non-ASCII characters"""
+    try:
+        print(msg)
+    except UnicodeEncodeError:
+        # Replace non-ASCII characters with ? for console display
+        safe_msg = msg.encode('ascii', errors='replace').decode('ascii')
+        print(safe_msg)
 
 
 # Map voice display names to language codes for translation
@@ -17,6 +31,8 @@ VOICE_TO_LANGUAGE = {
     "English - Female": "en",
     "Hindi - Male": "hi",
     "Hindi - Female": "hi",
+    "Kannada - Male": "kn",
+    "Kannada - Female": "kn",
     "Spanish - Male": "es",
     "Spanish - Female": "es",
     "French - Male": "fr",
@@ -49,6 +65,14 @@ VOICE_TO_LANGUAGE = {
     "Norwegian - Female": "no",
     "Danish - Male": "da",
     "Danish - Female": "da",
+    "Tamil - Male": "ta",
+    "Tamil - Female": "ta",
+    "Telugu - Male": "te",
+    "Telugu - Female": "te",
+    "Bengali - Male": "bn",
+    "Bengali - Female": "bn",
+    "Indonesian - Male": "id",
+    "Indonesian - Female": "id",
 }
 
 
@@ -165,22 +189,22 @@ class Translator:
         # Try method 1
         result = self._translate_method1(text, target)
         if result:
-            print(f"      Translated: '{text[:30]}...' -> '{result[:30]}...'")
+            safe_print(f"      Translated: '{text[:30]}...' -> '{result[:30]}...'")
             return result
         
         # Try method 2
         result = self._translate_method2(text, target)
         if result:
-            print(f"      Translated (m2): '{text[:30]}...' -> '{result[:30]}...'")
+            safe_print(f"      Translated (m2): '{text[:30]}...' -> '{result[:30]}...'")
             return result
         
         # Try method 3
         result = self._translate_method3(text, target)
         if result:
-            print(f"      Translated (m3): '{text[:30]}...' -> '{result[:30]}...'")
+            safe_print(f"      Translated (m3): '{text[:30]}...' -> '{result[:30]}...'")
             return result
         
-        print(f"      Translation failed, using original: '{text[:30]}...'")
+        safe_print(f"      Translation failed, using original: '{text[:30]}...'")
         return text
     
     def translate_segments(self, segments: list) -> list:

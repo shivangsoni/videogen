@@ -29,11 +29,24 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from dotenv import load_dotenv
 
+# Fix Windows console encoding for non-ASCII characters (Hindi, Chinese, etc.)
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+
 # Ignore SIGINT (Ctrl+C) during video processing to prevent interruptions
 def signal_handler(sig, frame):
-    print("\n[!] Interrupt received but ignored during processing. Use Ctrl+Break to force exit.")
+    safe_print("\n[!] Interrupt received but ignored during processing. Use Ctrl+Break to force exit.")
     
 signal.signal(signal.SIGINT, signal_handler)
+
+# Safe print function for Windows console (handles non-ASCII characters)
+def safe_print(msg: str):
+    """Print safely on Windows by encoding non-ASCII characters"""
+    try:
+        print(msg)
+    except UnicodeEncodeError:
+        # Replace non-ASCII characters with ? for console display
+        safe_msg = msg.encode('ascii', errors='replace').decode('ascii')
+        print(safe_msg)
 
 # Load environment variables
 load_dotenv()
@@ -210,7 +223,7 @@ def generate_video_for_language(
         output_filename = output_path.name
         
         def progress_callback(pct, msg):
-            print(f"    [{pct:.0%}] {msg}")
+            safe_print(f"    [{pct:.0%}] {msg}")
         
         result_path = generator.generate_video(
             segments=segments,
@@ -224,14 +237,21 @@ def generate_video_for_language(
         # Move to desired location
         if result_path and Path(result_path).exists():
             shutil.move(result_path, output_path)
-            print(f"    [OK] Saved to: {output_path}")
-            generator.cleanup_temp_files()
+            safe_print(f"    [OK] Saved to: {output_path}")
+            try:
+                generator.cleanup_temp_files()
+            except Exception as cleanup_err:
+                safe_print(f"    [WARN] Cleanup issue (video OK): {cleanup_err}")
             return output_path
         
         return None
         
     except Exception as e:
-        print(f"  [ERROR] Failed to generate {language} video: {e}")
+        # Check if video was saved despite error
+        if output_path.exists():
+            safe_print(f"    [OK] Video saved despite cleanup error: {output_path}")
+            return output_path
+        safe_print(f"  [ERROR] Failed to generate {language} video: {e}")
         return None
 
 

@@ -3,11 +3,25 @@ Video Generator with stock videos/animations and full-screen captions
 """
 
 import os
+import sys
 import random
 import signal
 import textwrap
 from pathlib import Path
 from typing import List, Tuple, Optional
+
+# Fix Windows console encoding
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+
+# Safe print function for Windows console (handles non-ASCII characters)
+def safe_print(msg: str):
+    """Print safely on Windows by encoding non-ASCII characters"""
+    try:
+        print(msg)
+    except UnicodeEncodeError:
+        # Replace non-ASCII characters with ? for console display
+        safe_msg = msg.encode('ascii', errors='replace').decode('ascii')
+        print(safe_msg)
 
 # Ignore SIGINT during video processing
 signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -529,10 +543,35 @@ class VideoGenerator:
         return timings
     
     def cleanup_temp_files(self):
-        """Remove temporary files"""
+        """Remove temporary files with retry for locked files"""
         import shutil
+        import time
+        import gc
+        
+        # Force garbage collection to release file handles
+        gc.collect()
+        
         if self.temp_dir.exists():
-            shutil.rmtree(self.temp_dir)
+            # Try up to 3 times with delays
+            for attempt in range(3):
+                try:
+                    shutil.rmtree(self.temp_dir)
+                    break
+                except (PermissionError, OSError) as e:
+                    if attempt < 2:
+                        time.sleep(1)  # Wait and retry
+                        gc.collect()
+                    else:
+                        # Last attempt - try to delete individual files
+                        for f in self.temp_dir.glob("*"):
+                            try:
+                                f.unlink()
+                            except:
+                                pass  # Skip locked files
+                        try:
+                            self.temp_dir.rmdir()
+                        except:
+                            pass  # Leave dir if not empty
 
 
 if __name__ == "__main__":
