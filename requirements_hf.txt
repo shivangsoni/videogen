@@ -1,6 +1,6 @@
 # Core dependencies
 gradio==4.44.0
-huggingface_hub==0.24.0
+huggingface_hub==0.23.5
 moviepy==1.0.3
 edge-tts>=6.1.0
 Pillow>=9.0.0
