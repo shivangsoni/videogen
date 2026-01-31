@@ -70,8 +70,10 @@ from video_generator import VideoGenerator
 from stock_video_fetcher import StockVideoFetcher
 from audio_generator import AudioGenerator, EDGE_TTS_VOICES
 
-# Get API key from environment (set in HF Spaces secrets)
+# Get API keys from environment (set in HF Spaces secrets)
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
+GIPHY_API_KEY = os.environ.get("GIPHY_API_KEY", "")
+PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY", "")
 
 # Voice options organized by language and gender
 VOICE_OPTIONS = {
@@ -288,6 +290,14 @@ def generate_video(
 
     if not PEXELS_API_KEY and not use_anime_clips and not use_giphy_clips and not use_pixabay_clips:
         raise gr.Error("Pexels API key not configured. Please add PEXELS_API_KEY to Space secrets or use anime/GIPHY/Pixabay clips.")
+
+    # Check if GIPHY is requested but API key is missing
+    if use_giphy_clips and not GIPHY_API_KEY:
+        raise gr.Error("GIPHY API key not configured. Please add GIPHY_API_KEY to Space secrets.")
+    
+    # Check if Pixabay is requested but API key is missing
+    if use_pixabay_clips and not PIXABAY_API_KEY:
+        raise gr.Error("Pixabay API key not configured. Please add PIXABAY_API_KEY to Space secrets.")
 
     # Parse keywords
     keywords = None
