@@ -624,7 +624,6 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         server_port=7860,
         share=False,
-        ssr_mode=False,
     )
 
 # v2.2 - Removed queue, refresh page to cancel
