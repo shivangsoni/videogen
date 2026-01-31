@@ -8,11 +8,15 @@ import random
 import requests
 from pathlib import Path
 from typing import List, Optional, Literal
-from dotenv import load_dotenv
-from config import TEMP_DIR
 
-# Ensure .env is loaded
-load_dotenv()
+# Load environment variables (optional - for local development)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not needed on HF Spaces (uses secrets)
+
+from config import TEMP_DIR
 
 
 class MultiSourceFetcher:

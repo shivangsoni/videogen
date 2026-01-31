@@ -8,10 +8,13 @@ import tempfile
 import shutil
 import threading
 from pathlib import Path
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables (optional - for local development)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not needed on HF Spaces (uses secrets)
 
 import gradio as gr
 
