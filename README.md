@@ -1,3 +1,15 @@
+---
+title: YouTube Shorts Generator
+emoji: 🎬
+colorFrom: red
+colorTo: yellow
+sdk: gradio
+sdk_version: "4.44.0"
+python_version: "3.11"
+app_file: gradio_app.py
+pinned: false
+---
+
 # YouTube Shorts Video Generator
 
 A Python tool to generate faceless YouTube Shorts (30-60 second videos) from text scripts. Perfect for creating motivational content, tips, and educational shorts.
