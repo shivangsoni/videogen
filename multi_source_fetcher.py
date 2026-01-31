@@ -8,7 +8,11 @@ import random
 import requests
 from pathlib import Path
 from typing import List, Optional, Literal
+from dotenv import load_dotenv
 from config import TEMP_DIR
+
+# Ensure .env is loaded
+load_dotenv()
 
 
 class MultiSourceFetcher:

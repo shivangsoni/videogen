@@ -8,6 +8,10 @@ import tempfile
 import shutil
 import threading
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 import gradio as gr
 
