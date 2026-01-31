@@ -1,10 +1,12 @@
 # Core dependencies
-gradio>=4.44.0
+gradio==5.9.1
+huggingface_hub>=0.25.0
 moviepy==1.0.3
 edge-tts>=6.1.0
 Pillow>=9.0.0
 numpy>=1.20.0
 requests>=2.28.0
+nest_asyncio>=1.5.0
 
 # MoviePy dependencies
 imageio>=2.9.0
