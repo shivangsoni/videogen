@@ -154,6 +154,30 @@ VOICE_OPTIONS = {
         "Male": [("Jeppe", "da-DK-JeppeNeural")],
         "Female": [("Christel", "da-DK-ChristelNeural")],
     },
+    "Kannada": {
+        "Male": [("Gagan", "kn-IN-GaganNeural")],
+        "Female": [("Sapna", "kn-IN-SapnaNeural")],
+    },
+    "Tamil": {
+        "Male": [("Valluvar", "ta-IN-ValluvarNeural")],
+        "Female": [("Pallavi", "ta-IN-PallaviNeural")],
+    },
+    "Telugu": {
+        "Male": [("Mohan", "te-IN-MohanNeural")],
+        "Female": [("Shruti", "te-IN-ShrutiNeural")],
+    },
+    "Marathi": {
+        "Male": [("Manohar", "mr-IN-ManoharNeural")],
+        "Female": [("Aarohi", "mr-IN-AarohiNeural")],
+    },
+    "Bengali": {
+        "Male": [("Bashkar", "bn-IN-BashkarNeural")],
+        "Female": [("Tanishaa", "bn-IN-TanishaaNeural")],
+    },
+    "Gujarati": {
+        "Male": [("Niranjan", "gu-IN-NiranjanNeural")],
+        "Female": [("Dhwani", "gu-IN-DhwaniNeural")],
+    },
 }
 
 # Hello translations for preview
@@ -176,6 +200,12 @@ HELLO_TRANSLATIONS = {
     "Swedish": "Hej! Så här låter jag.",
     "Norwegian": "Hei! Slik høres jeg ut.",
     "Danish": "Hej! Sådan lyder jeg.",
+    "Kannada": "ನಮಸ್ಕಾರ! ನಾನು ಹೀಗೆ ಮಾತನಾಡುತ್ತೇನೆ.",
+    "Tamil": "வணக்கம்! நான் இப்படி பேசுவேன்.",
+    "Telugu": "నమస్కారం! నేను ఇలా మాట్లాడతాను.",
+    "Marathi": "नमस्कार! मी असा बोलतो.",
+    "Bengali": "নমস্কার! আমি এইভাবে কথা বলি.",
+    "Gujarati": "નમસ્તે! હું આવી રીતે બોલું છું.",
 }
 
 

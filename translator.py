@@ -71,6 +71,10 @@ VOICE_TO_LANGUAGE = {
     "Telugu - Female": "te",
     "Bengali - Male": "bn",
     "Bengali - Female": "bn",
+    "Marathi - Male": "mr",
+    "Marathi - Female": "mr",
+    "Gujarati - Male": "gu",
+    "Gujarati - Female": "gu",
     "Indonesian - Male": "id",
     "Indonesian - Female": "id",
 }

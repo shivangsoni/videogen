@@ -88,6 +88,24 @@ EDGE_TTS_VOICES = {
     # Danish voices
     "Danish - Male": "da-DK-JeppeNeural",
     "Danish - Female": "da-DK-ChristelNeural",
+    # Kannada voices
+    "Kannada - Male": "kn-IN-GaganNeural",
+    "Kannada - Female": "kn-IN-SapnaNeural",
+    # Tamil voices
+    "Tamil - Male": "ta-IN-ValluvarNeural",
+    "Tamil - Female": "ta-IN-PallaviNeural",
+    # Telugu voices
+    "Telugu - Male": "te-IN-MohanNeural",
+    "Telugu - Female": "te-IN-ShrutiNeural",
+    # Marathi voices
+    "Marathi - Male": "mr-IN-ManoharNeural",
+    "Marathi - Female": "mr-IN-AarohiNeural",
+    # Bengali voices
+    "Bengali - Male": "bn-IN-BashkarNeural",
+    "Bengali - Female": "bn-IN-TanishaaNeural",
+    # Gujarati voices
+    "Gujarati - Male": "gu-IN-NiranjanNeural",
+    "Gujarati - Female": "gu-IN-DhwaniNeural",
 }
 
 # gTTS fallback - language codes only (no voice variety)
