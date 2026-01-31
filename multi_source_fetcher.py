@@ -162,15 +162,17 @@ class MultiSourceFetcher:
         self,
         query: str,
         count: int = 3,
-        rating: str = "g"  # g, pg, pg-13, r
+        rating: str = "g",  # g, pg, pg-13, r
+        prefer_mp4: bool = True  # MP4 is higher quality than GIF
     ) -> List[str]:
         """
-        Fetch GIFs from GIPHY.
+        Fetch videos/GIFs from GIPHY.
         
         Args:
             query: Search query (e.g., "hand drawn", "sketch")
-            count: Number of GIFs to fetch
+            count: Number of items to fetch
             rating: Content rating filter
+            prefer_mp4: If True, download MP4 (better quality). If False, download GIF.
         """
         if not self.giphy_key:
             print("      [GIPHY] No API key. Get free key at https://developers.giphy.com/")
@@ -193,21 +195,36 @@ class MultiSourceFetcher:
             downloaded = []
             
             for i, gif in enumerate(gifs[:count]):
-                # Get original or downsized GIF
                 images = gif.get("images", {})
-                gif_url = None
+                media_url = None
+                ext = "mp4" if prefer_mp4 else "gif"
                 
-                # Prefer original, then downsized
-                for quality in ["original", "downsized", "fixed_height"]:
-                    if quality in images and images[quality].get("url"):
-                        gif_url = images[quality]["url"]
-                        break
+                if prefer_mp4:
+                    # Prefer high-quality MP4 versions (much better quality than GIF)
+                    # Order: original_mp4 > looping > preview_mp4
+                    for quality in ["original_mp4", "looping", "preview_mp4"]:
+                        if quality in images and images[quality].get("mp4"):
+                            media_url = images[quality]["mp4"]
+                            break
+                    # Fallback to original GIF if no MP4
+                    if not media_url:
+                        for quality in ["original", "downsized"]:
+                            if quality in images and images[quality].get("url"):
+                                media_url = images[quality]["url"]
+                                ext = "gif"
+                                break
+                else:
+                    # Use GIF (lower quality but smaller file)
+                    for quality in ["original", "downsized", "fixed_height"]:
+                        if quality in images and images[quality].get("url"):
+                            media_url = images[quality]["url"]
+                            break
                 
-                if gif_url:
-                    filename = self.temp_dir / f"giphy_{i}.gif"
-                    if self._download_file(gif_url, filename):
+                if media_url:
+                    filename = self.temp_dir / f"giphy_{i}.{ext}"
+                    if self._download_file(media_url, filename):
                         downloaded.append(str(filename))
-                        print(f"      [GIPHY] Downloaded: {filename.name}")
+                        print(f"      [GIPHY] Downloaded ({ext.upper()}): {filename.name}")
             
             return downloaded
             
