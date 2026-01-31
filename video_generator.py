@@ -52,6 +52,7 @@ from stock_video_fetcher import StockVideoFetcher
 from audio_generator import AudioGenerator
 from translator import Translator
 from anime_video_fetcher import AnimeVideoFetcher
+from multi_source_fetcher import MultiSourceFetcher
 
 
 class VideoGenerator:
@@ -63,6 +64,7 @@ class VideoGenerator:
         
         self.stock_fetcher = StockVideoFetcher(pexels_api_key)
         self.anime_fetcher = AnimeVideoFetcher()
+        self.multi_fetcher = MultiSourceFetcher()
         self.bg_generator = AnimatedBackgroundGenerator()
         self.audio_generator = AudioGenerator()
         self.font_path = self._get_font_path()
@@ -259,6 +261,7 @@ class VideoGenerator:
         target_language: str = "en",
         progress_callback=None,
         use_anime_clips: bool = False,
+        use_sketch_clips: bool = False,
     ) -> str:
         """
         Generate video with stock videos/animations and full-screen captions.
@@ -271,6 +274,7 @@ class VideoGenerator:
             target_language: Language code for audio (captions stay in English)
             progress_callback: Optional callback function(progress, message) for progress updates
             use_anime_clips: Whether to use anime clips from Trace Moe instead of Pexels
+            use_sketch_clips: Whether to use hand-drawn/sketch clips from GIPHY/Pixabay
         """
         def report_progress(pct, msg):
             """Report progress if callback is provided"""
@@ -343,7 +347,41 @@ class VideoGenerator:
                     except Exception as e:
                         print(f"      Error loading anime clip: {e}")
         
-        # Try to fetch stock videos if not using anime or anime failed
+        # Try sketch/hand-drawn clips from GIPHY/Pixabay
+        elif use_sketch_clips:
+            sketch_keywords = stock_keywords[:3] if stock_keywords else None
+            if sketch_keywords:
+                report_progress(0.35, f"Fetching sketch clips for: {', '.join(sketch_keywords)}...")
+            else:
+                report_progress(0.35, "Fetching hand-drawn/sketch clips...")
+            
+            # Try sketch videos from Pixabay first
+            video_paths = self.multi_fetcher.fetch_sketch_videos(
+                query=sketch_keywords[0] if sketch_keywords else None,
+                count=3
+            )
+            
+            # If no videos, try GIFs from GIPHY
+            if not video_paths:
+                report_progress(0.40, "Trying GIPHY for sketch GIFs...")
+                video_paths = self.multi_fetcher.fetch_hand_drawn_gifs(
+                    query=sketch_keywords[0] if sketch_keywords else None,
+                    count=3
+                )
+            
+            if video_paths:
+                report_progress(0.45, f"Processing {len(video_paths)} sketch clips...")
+                for i, vpath in enumerate(video_paths):
+                    try:
+                        clip = VideoFileClip(vpath)
+                        clip = self.resize_video_to_fullscreen(clip)
+                        clip = clip.fx(vfx.colorx, 0.7)  # Keep sketch clips brighter
+                        background_clips.append(clip)
+                        report_progress(0.45 + (i+1)*0.03, f"Processed sketch clip {i+1}/{len(video_paths)}")
+                    except Exception as e:
+                        print(f"      Error loading sketch clip: {e}")
+        
+        # Try to fetch stock videos if not using anime/sketch or they failed
         elif use_stock_videos and self.stock_fetcher.api_key:
             report_progress(0.35, "Searching Pexels for stock videos...")
             # Use custom keywords if provided, otherwise extract from script
