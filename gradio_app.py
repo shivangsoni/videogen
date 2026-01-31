@@ -267,6 +267,7 @@ def generate_video(
     voice_type: str,
     voice_name: str,
     use_anime_clips: bool,
+    use_sketch_clips: bool,
     progress=gr.Progress()
 ) -> str:
     """Generate a YouTube Shorts video from script text."""
@@ -277,8 +278,8 @@ def generate_video(
     if not script_text.strip():
         raise gr.Error("Please enter a script!")
 
-    if not PEXELS_API_KEY and not use_anime_clips:
-        raise gr.Error("Pexels API key not configured. Please add PEXELS_API_KEY to Space secrets or use anime clips.")
+    if not PEXELS_API_KEY and not use_anime_clips and not use_sketch_clips:
+        raise gr.Error("Pexels API key not configured. Please add PEXELS_API_KEY to Space secrets or use anime/sketch clips.")
 
     # Parse keywords
     keywords = None
@@ -335,6 +336,7 @@ def generate_video(
             target_language=voice,
             progress_callback=progress_callback,
             use_anime_clips=use_anime_clips,
+            use_sketch_clips=use_sketch_clips,
         )
 
         progress(1.0, desc=" Complete! Video ready.")
@@ -531,9 +533,14 @@ Your call to action.""",
 
             with gr.Row():
                 use_anime_clips = gr.Checkbox(
-                    label=" Use Anime Clips (Trace Moe API)",
+                    label="🎬 Use Anime Clips (Trace Moe API)",
                     value=False,
-                    info="When checked, uses anime clips instead of Pexels stock videos",
+                    info="Uses anime clips instead of Pexels stock videos",
+                )
+                use_sketch_clips = gr.Checkbox(
+                    label="✏️ Use Sketch/Hand-drawn (GIPHY/Pixabay)",
+                    value=False,
+                    info="Uses hand-drawn, doodle, whiteboard style clips",
                 )
 
             with gr.Row():
@@ -592,7 +599,7 @@ Your call to action.""",
     # Connect the generate button
     generate_btn.click(
         fn=generate_video,
-        inputs=[script_input, stock_keywords, language, voice_type, voice_name, use_anime_clips],
+        inputs=[script_input, stock_keywords, language, voice_type, voice_name, use_anime_clips, use_sketch_clips],
         outputs=video_output,
     )
 
