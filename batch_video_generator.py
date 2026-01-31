@@ -192,7 +192,8 @@ def generate_video_for_language(
     language: str,
     output_path: Path,
     use_anime_clips: bool = False,
-    use_sketch_clips: bool = False
+    use_giphy_clips: bool = False,
+    use_pixabay_clips: bool = False
 ) -> Optional[Path]:
     """Generate a video for a specific language"""
     
@@ -233,7 +234,8 @@ def generate_video_for_language(
             target_language=voice,
             progress_callback=progress_callback,
             use_anime_clips=use_anime_clips,
-            use_sketch_clips=use_sketch_clips,
+            use_giphy_clips=use_giphy_clips,
+            use_pixabay_clips=use_pixabay_clips,
         )
         
         # Move to desired location
@@ -422,7 +424,8 @@ def process_folder(
     publish: bool = False,
     youtube_account: str = None,
     use_anime_clips: bool = False,
-    use_sketch_clips: bool = False
+    use_giphy_clips: bool = False,
+    use_pixabay_clips: bool = False
 ) -> Dict:
     """Process a single shorts folder and generate videos"""
     
@@ -473,7 +476,8 @@ def process_folder(
             language=language,
             output_path=output_path,
             use_anime_clips=use_anime_clips,
-            use_sketch_clips=use_sketch_clips
+            use_giphy_clips=use_giphy_clips,
+            use_pixabay_clips=use_pixabay_clips
         )
         
         if video_path:
@@ -531,9 +535,14 @@ def main():
         help="Use anime clips instead of stock videos"
     )
     parser.add_argument(
-        "--sketch",
+        "--giphy",
         action="store_true",
-        help="Use hand-drawn/sketch clips from GIPHY/Pixabay"
+        help="Use animated GIFs from GIPHY"
+    )
+    parser.add_argument(
+        "--pixabay",
+        action="store_true",
+        help="Use free stock videos from Pixabay"
     )
     parser.add_argument(
         "--english-only",
@@ -636,7 +645,8 @@ def main():
             publish=args.publish,
             youtube_account=args.account,
             use_anime_clips=args.anime,
-            use_sketch_clips=args.sketch
+            use_giphy_clips=args.giphy,
+            use_pixabay_clips=args.pixabay
         )
         all_results.append(results)
         

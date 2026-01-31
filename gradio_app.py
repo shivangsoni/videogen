@@ -267,7 +267,8 @@ def generate_video(
     voice_type: str,
     voice_name: str,
     use_anime_clips: bool,
-    use_sketch_clips: bool,
+    use_giphy_clips: bool,
+    use_pixabay_clips: bool,
     progress=gr.Progress()
 ) -> str:
     """Generate a YouTube Shorts video from script text."""
@@ -278,8 +279,8 @@ def generate_video(
     if not script_text.strip():
         raise gr.Error("Please enter a script!")
 
-    if not PEXELS_API_KEY and not use_anime_clips and not use_sketch_clips:
-        raise gr.Error("Pexels API key not configured. Please add PEXELS_API_KEY to Space secrets or use anime/sketch clips.")
+    if not PEXELS_API_KEY and not use_anime_clips and not use_giphy_clips and not use_pixabay_clips:
+        raise gr.Error("Pexels API key not configured. Please add PEXELS_API_KEY to Space secrets or use anime/GIPHY/Pixabay clips.")
 
     # Parse keywords
     keywords = None
@@ -336,7 +337,8 @@ def generate_video(
             target_language=voice,
             progress_callback=progress_callback,
             use_anime_clips=use_anime_clips,
-            use_sketch_clips=use_sketch_clips,
+            use_giphy_clips=use_giphy_clips,
+            use_pixabay_clips=use_pixabay_clips,
         )
 
         progress(1.0, desc=" Complete! Video ready.")
@@ -537,10 +539,15 @@ Your call to action.""",
                     value=False,
                     info="Uses anime clips instead of Pexels stock videos",
                 )
-                use_sketch_clips = gr.Checkbox(
-                    label="✏️ Use Sketch/Hand-drawn (GIPHY/Pixabay)",
+                use_giphy_clips = gr.Checkbox(
+                    label="🎭 Use GIPHY (Animated GIFs)",
                     value=False,
-                    info="Uses hand-drawn, doodle, whiteboard style clips",
+                    info="Uses animated GIFs from GIPHY",
+                )
+                use_pixabay_clips = gr.Checkbox(
+                    label="🖼️ Use Pixabay (Free Videos)",
+                    value=False,
+                    info="Uses free stock videos from Pixabay",
                 )
 
             with gr.Row():
@@ -599,7 +606,7 @@ Your call to action.""",
     # Connect the generate button
     generate_btn.click(
         fn=generate_video,
-        inputs=[script_input, stock_keywords, language, voice_type, voice_name, use_anime_clips, use_sketch_clips],
+        inputs=[script_input, stock_keywords, language, voice_type, voice_name, use_anime_clips, use_giphy_clips, use_pixabay_clips],
         outputs=video_output,
     )
 

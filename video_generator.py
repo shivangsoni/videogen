@@ -261,7 +261,8 @@ class VideoGenerator:
         target_language: str = "en",
         progress_callback=None,
         use_anime_clips: bool = False,
-        use_sketch_clips: bool = False,
+        use_giphy_clips: bool = False,
+        use_pixabay_clips: bool = False,
     ) -> str:
         """
         Generate video with stock videos/animations and full-screen captions.
@@ -274,7 +275,8 @@ class VideoGenerator:
             target_language: Language code for audio (captions stay in English)
             progress_callback: Optional callback function(progress, message) for progress updates
             use_anime_clips: Whether to use anime clips from Trace Moe instead of Pexels
-            use_sketch_clips: Whether to use hand-drawn/sketch clips from GIPHY/Pixabay
+            use_giphy_clips: Whether to use animated GIFs from GIPHY
+            use_pixabay_clips: Whether to use free videos from Pixabay
         """
         def report_progress(pct, msg):
             """Report progress if callback is provided"""
@@ -347,39 +349,56 @@ class VideoGenerator:
                     except Exception as e:
                         print(f"      Error loading anime clip: {e}")
         
-        # Try sketch/hand-drawn clips from GIPHY/Pixabay
-        elif use_sketch_clips:
-            sketch_keywords = stock_keywords[:3] if stock_keywords else None
-            if sketch_keywords:
-                report_progress(0.35, f"Fetching sketch clips for: {', '.join(sketch_keywords)}...")
+        # Try GIPHY animated GIFs
+        elif use_giphy_clips:
+            giphy_keywords = stock_keywords[:3] if stock_keywords else None
+            if giphy_keywords:
+                report_progress(0.35, f"Fetching GIPHY GIFs for: {', '.join(giphy_keywords)}...")
             else:
-                report_progress(0.35, "Fetching hand-drawn/sketch clips...")
+                report_progress(0.35, "Fetching animated GIFs from GIPHY...")
             
-            # Try sketch videos from Pixabay first
-            video_paths = self.multi_fetcher.fetch_sketch_videos(
-                query=sketch_keywords[0] if sketch_keywords else None,
+            video_paths = self.multi_fetcher.fetch_hand_drawn_gifs(
+                query=giphy_keywords[0] if giphy_keywords else None,
                 count=3
             )
             
-            # If no videos, try GIFs from GIPHY
-            if not video_paths:
-                report_progress(0.40, "Trying GIPHY for sketch GIFs...")
-                video_paths = self.multi_fetcher.fetch_hand_drawn_gifs(
-                    query=sketch_keywords[0] if sketch_keywords else None,
-                    count=3
-                )
-            
             if video_paths:
-                report_progress(0.45, f"Processing {len(video_paths)} sketch clips...")
+                report_progress(0.45, f"Processing {len(video_paths)} GIPHY clips...")
                 for i, vpath in enumerate(video_paths):
                     try:
                         clip = VideoFileClip(vpath)
                         clip = self.resize_video_to_fullscreen(clip)
-                        clip = clip.fx(vfx.colorx, 0.7)  # Keep sketch clips brighter
+                        clip = clip.fx(vfx.colorx, 0.7)  # Keep GIFs brighter
                         background_clips.append(clip)
-                        report_progress(0.45 + (i+1)*0.03, f"Processed sketch clip {i+1}/{len(video_paths)}")
+                        report_progress(0.45 + (i+1)*0.03, f"Processed GIPHY clip {i+1}/{len(video_paths)}")
                     except Exception as e:
-                        print(f"      Error loading sketch clip: {e}")
+                        print(f"      Error loading GIPHY clip: {e}")
+        
+        # Try Pixabay free videos
+        elif use_pixabay_clips:
+            pixabay_keywords = stock_keywords[:3] if stock_keywords else None
+            if pixabay_keywords:
+                report_progress(0.35, f"Fetching Pixabay videos for: {', '.join(pixabay_keywords)}...")
+            else:
+                report_progress(0.35, "Fetching free videos from Pixabay...")
+            
+            video_paths = self.multi_fetcher.fetch_from_pixabay(
+                query=pixabay_keywords[0] if pixabay_keywords else "motivation",
+                media_type="video",
+                count=3
+            )
+            
+            if video_paths:
+                report_progress(0.45, f"Processing {len(video_paths)} Pixabay clips...")
+                for i, vpath in enumerate(video_paths):
+                    try:
+                        clip = VideoFileClip(vpath)
+                        clip = self.resize_video_to_fullscreen(clip)
+                        clip = clip.fx(vfx.colorx, 0.65)  # Slightly dim
+                        background_clips.append(clip)
+                        report_progress(0.45 + (i+1)*0.03, f"Processed Pixabay clip {i+1}/{len(video_paths)}")
+                    except Exception as e:
+                        print(f"      Error loading Pixabay clip: {e}")
         
         # Try to fetch stock videos if not using anime/sketch or they failed
         elif use_stock_videos and self.stock_fetcher.api_key:
