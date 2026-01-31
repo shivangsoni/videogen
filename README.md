@@ -21,7 +21,11 @@ A Python tool to generate faceless YouTube Shorts (30-60 second videos) from tex
 - 🎬 Generates vertical videos (1080x1920) optimized for YouTube Shorts
 - 🗣️ Automatic text-to-speech narration using Edge TTS (19 languages)
 - ✨ Animated text overlays with fade transitions
-- 🎨 Stock video backgrounds from Pexels
+- 🎨 **Multiple Stock Video Sources:**
+  - 📹 **Pexels** - High-quality stock videos
+  - 🎭 **GIPHY** - Animated GIFs
+  - 🖼️ **Pixabay** - Free stock videos
+  - 🎌 **Trace Moe** - Anime clips
 - 📝 Simple script format for easy content creation
 - 🌍 **Multi-language support** - 19 languages with native voices
 - 📤 **YouTube Auto-Publishing** - Publish directly to YouTube
@@ -50,6 +54,34 @@ A Python tool to generate faceless YouTube Shorts (30-60 second videos) from tex
    - Or use chocolatey: `choco install ffmpeg`
    - Or use winget: `winget install ffmpeg`
    - Make sure `ffmpeg` is in your system PATH
+
+5. **Setup API Keys** (optional but recommended):
+   
+   Copy `.env.example` to `.env` and add your keys:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` with your API keys:
+   ```env
+   # Required for Pexels stock videos
+   PEXELS_API_KEY=your_pexels_key_here
+   
+   # Optional - for GIPHY animated GIFs
+   GIPHY_API_KEY=your_giphy_key_here
+   
+   # Optional - for Pixabay free videos
+   PIXABAY_API_KEY=your_pixabay_key_here
+   
+   # Optional - for AI content generation
+   GROQ_API_KEY=your_groq_key_here
+   ```
+   
+   **Get free API keys:**
+   - Pexels: https://www.pexels.com/api/
+   - GIPHY: https://developers.giphy.com/
+   - Pixabay: https://pixabay.com/api/docs/
+   - Groq: https://console.groq.com/
 
 ## Script Format
 
@@ -194,29 +226,116 @@ python publish_all.py "My Video Topic" myaccount "English,Hindi,Spanish"
 python batch_video_generator.py --folder "My Video Topic" --languages "English" --publish --account myaccount
 ```
 
-### Supported Languages
+### Supported Languages (28 Languages)
 
+#### Indian Languages
 | Language | Code | Voice |
 |----------|------|-------|
 | English | en | en-US-JennyNeural |
 | Hindi | hi | hi-IN-SwaraNeural |
 | Kannada | kn | kn-IN-SapnaNeural |
+| Telugu | te | te-IN-ShrutiNeural |
+| Tamil | ta | ta-IN-PallaviNeural |
+| Marathi | mr | mr-IN-AarohiNeural |
+| Bengali | bn | bn-IN-TanishaaNeural |
+| Gujarati | gu | gu-IN-DhwaniNeural |
+| Malayalam | ml | ml-IN-SobhanaNeural |
+| Punjabi | pa | pa-IN-VaaniNeural |
+
+#### European Languages
+| Language | Code | Voice |
+|----------|------|-------|
 | Spanish | es | es-ES-ElviraNeural |
 | French | fr | fr-FR-DeniseNeural |
 | German | de | de-DE-KatjaNeural |
 | Portuguese | pt | pt-BR-FranciscaNeural |
 | Italian | it | it-IT-ElsaNeural |
+| Russian | ru | ru-RU-SvetlanaNeural |
+| Dutch | nl | nl-NL-ColetteNeural |
+| Polish | pl | pl-PL-ZofiaNeural |
+| Swedish | sv | sv-SE-SofieNeural |
+| Norwegian | nb | nb-NO-PernilleNeural |
+| Danish | da | da-DK-ChristelNeural |
+| Turkish | tr | tr-TR-EmelNeural |
+
+#### Asian Languages
+| Language | Code | Voice |
+|----------|------|-------|
 | Japanese | ja | ja-JP-NanamiNeural |
 | Korean | ko | ko-KR-SunHiNeural |
 | Chinese | zh | zh-CN-XiaoxiaoNeural |
-| Arabic | ar | ar-SA-ZariyahNeural |
-| Russian | ru | ru-RU-SvetlanaNeural |
-| Dutch | nl | nl-NL-ColetteNeural |
-| Turkish | tr | tr-TR-EmelNeural |
-| Polish | pl | pl-PL-AgnieszkaNeural |
-| Vietnamese | vi | vi-VN-HoaiMyNeural |
 | Thai | th | th-TH-PremwadeeNeural |
+| Vietnamese | vi | vi-VN-HoaiMyNeural |
 | Indonesian | id | id-ID-GadisNeural |
+
+#### Middle Eastern
+| Language | Code | Voice |
+|----------|------|-------|
+| Arabic | ar | ar-SA-ZariyahNeural |
+
+**Note:** YouTube category is automatically set based on the language for better discoverability.
+
+## Stock Video Sources
+
+The batch generator supports multiple stock video sources:
+
+### Pexels (Default)
+High-quality stock videos. Requires `PEXELS_API_KEY`.
+```bash
+python batch_video_generator.py --folder "My Video"
+```
+
+### GIPHY - Animated GIFs
+Use animated GIFs from GIPHY. Requires `GIPHY_API_KEY`.
+```bash
+python batch_video_generator.py --folder "My Video" --giphy
+```
+
+### Pixabay - Free Videos
+Use free stock videos from Pixabay. Requires `PIXABAY_API_KEY`.
+```bash
+python batch_video_generator.py --folder "My Video" --pixabay
+```
+
+### Anime Clips (Trace Moe)
+Use anime clips. No API key required.
+```bash
+python batch_video_generator.py --folder "My Video" --anime
+```
+
+### Combine Sources
+You can combine options (first available will be used):
+```bash
+python batch_video_generator.py --folder "My Video" --giphy --pixabay
+```
+
+### Quick Testing (English Only)
+For faster testing, use `--english-only`:
+```bash
+python batch_video_generator.py --folder "My Video" --giphy --english-only
+```
+
+## Gradio Web UI
+
+The project includes a Gradio web interface with:
+
+- 📝 Script editor with examples
+- 🎤 Voice selection (Male/Female per language)
+- 🎬 Video source selection:
+  - ✅ Pexels (default)
+  - ✅ GIPHY (Animated GIFs)
+  - ✅ Pixabay (Free Videos)
+  - ✅ Anime Clips (Trace Moe)
+- 🔊 Voice preview
+- ⏹️ Cancel button
+
+**Run locally:**
+```bash
+python gradio_app.py
+```
+
+**Or use the hosted version:**
+👉 https://huggingface.co/spaces/ssoni2234/youtube-shorts-generator
 
 ## License
 

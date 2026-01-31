@@ -67,25 +67,39 @@ PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
 
 # All supported languages with their default voice settings
 LANGUAGES = {
+    # Indian Languages
     "English": {"voice_type": "Female", "voice_id": "en-US-JennyNeural", "code": "en"},
     "Hindi": {"voice_type": "Female", "voice_id": "hi-IN-SwaraNeural", "code": "hi"},
     "Kannada": {"voice_type": "Female", "voice_id": "kn-IN-SapnaNeural", "code": "kn"},
+    "Telugu": {"voice_type": "Female", "voice_id": "te-IN-ShrutiNeural", "code": "te"},
+    "Tamil": {"voice_type": "Female", "voice_id": "ta-IN-PallaviNeural", "code": "ta"},
+    "Marathi": {"voice_type": "Female", "voice_id": "mr-IN-AarohiNeural", "code": "mr"},
+    "Bengali": {"voice_type": "Female", "voice_id": "bn-IN-TanishaaNeural", "code": "bn"},
+    "Gujarati": {"voice_type": "Female", "voice_id": "gu-IN-DhwaniNeural", "code": "gu"},
+    "Malayalam": {"voice_type": "Female", "voice_id": "ml-IN-SobhanaNeural", "code": "ml"},
+    "Punjabi": {"voice_type": "Female", "voice_id": "pa-IN-VaaniNeural", "code": "pa"},
+    # European Languages
     "Spanish": {"voice_type": "Female", "voice_id": "es-ES-ElviraNeural", "code": "es"},
     "French": {"voice_type": "Female", "voice_id": "fr-FR-DeniseNeural", "code": "fr"},
     "German": {"voice_type": "Female", "voice_id": "de-DE-KatjaNeural", "code": "de"},
     "Portuguese": {"voice_type": "Female", "voice_id": "pt-BR-FranciscaNeural", "code": "pt"},
     "Italian": {"voice_type": "Female", "voice_id": "it-IT-ElsaNeural", "code": "it"},
-    "Japanese": {"voice_type": "Female", "voice_id": "ja-JP-NanamiNeural", "code": "ja"},
-    "Korean": {"voice_type": "Female", "voice_id": "ko-KR-SunHiNeural", "code": "ko"},
-    "Chinese": {"voice_type": "Female", "voice_id": "zh-CN-XiaoxiaoNeural", "code": "zh"},
-    "Arabic": {"voice_type": "Female", "voice_id": "ar-SA-ZariyahNeural", "code": "ar"},
     "Russian": {"voice_type": "Female", "voice_id": "ru-RU-SvetlanaNeural", "code": "ru"},
     "Dutch": {"voice_type": "Female", "voice_id": "nl-NL-ColetteNeural", "code": "nl"},
-    "Turkish": {"voice_type": "Female", "voice_id": "tr-TR-EmelNeural", "code": "tr"},
     "Polish": {"voice_type": "Female", "voice_id": "pl-PL-ZofiaNeural", "code": "pl"},
     "Swedish": {"voice_type": "Female", "voice_id": "sv-SE-SofieNeural", "code": "sv"},
     "Norwegian": {"voice_type": "Female", "voice_id": "nb-NO-PernilleNeural", "code": "nb"},
     "Danish": {"voice_type": "Female", "voice_id": "da-DK-ChristelNeural", "code": "da"},
+    "Turkish": {"voice_type": "Female", "voice_id": "tr-TR-EmelNeural", "code": "tr"},
+    # Asian Languages
+    "Japanese": {"voice_type": "Female", "voice_id": "ja-JP-NanamiNeural", "code": "ja"},
+    "Korean": {"voice_type": "Female", "voice_id": "ko-KR-SunHiNeural", "code": "ko"},
+    "Chinese": {"voice_type": "Female", "voice_id": "zh-CN-XiaoxiaoNeural", "code": "zh"},
+    "Thai": {"voice_type": "Female", "voice_id": "th-TH-PremwadeeNeural", "code": "th"},
+    "Vietnamese": {"voice_type": "Female", "voice_id": "vi-VN-HoaiMyNeural", "code": "vi"},
+    "Indonesian": {"voice_type": "Female", "voice_id": "id-ID-GadisNeural", "code": "id"},
+    # Middle Eastern
+    "Arabic": {"voice_type": "Female", "voice_id": "ar-SA-ZariyahNeural", "code": "ar"},
 }
 
 # Language code to full name mapping
@@ -94,25 +108,39 @@ LANG_CODE_TO_NAME = {v["code"]: k for k, v in LANGUAGES.items()}
 # YouTube category IDs based on language/region
 # https://developers.google.com/youtube/v3/docs/videoCategories/list
 LANGUAGE_CATEGORIES = {
+    # Indian Languages
     "English": "22",      # People & Blogs
     "Hindi": "24",        # Entertainment
     "Kannada": "24",      # Entertainment
+    "Telugu": "24",       # Entertainment
+    "Tamil": "24",        # Entertainment
+    "Marathi": "24",      # Entertainment
+    "Bengali": "24",      # Entertainment
+    "Gujarati": "24",     # Entertainment
+    "Malayalam": "24",    # Entertainment
+    "Punjabi": "24",      # Entertainment
+    # European Languages
     "Spanish": "24",      # Entertainment
     "French": "22",       # People & Blogs
     "German": "22",       # People & Blogs
     "Portuguese": "24",   # Entertainment
     "Italian": "22",      # People & Blogs
-    "Japanese": "24",     # Entertainment
-    "Korean": "24",       # Entertainment
-    "Chinese": "24",      # Entertainment
-    "Arabic": "24",       # Entertainment
     "Russian": "24",      # Entertainment
     "Dutch": "22",        # People & Blogs
-    "Turkish": "24",      # Entertainment
     "Polish": "22",       # People & Blogs
     "Swedish": "22",      # People & Blogs
     "Norwegian": "22",    # People & Blogs
     "Danish": "22",       # People & Blogs
+    "Turkish": "24",      # Entertainment
+    # Asian Languages
+    "Japanese": "24",     # Entertainment
+    "Korean": "24",       # Entertainment
+    "Chinese": "24",      # Entertainment
+    "Thai": "24",         # Entertainment
+    "Vietnamese": "24",   # Entertainment
+    "Indonesian": "24",   # Entertainment
+    # Middle Eastern
+    "Arabic": "24",       # Entertainment
 }
 # Category IDs: 1=Film, 2=Autos, 10=Music, 15=Pets, 17=Sports, 
 # 19=Travel, 20=Gaming, 22=People&Blogs, 23=Comedy, 24=Entertainment, 
