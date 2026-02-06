@@ -246,10 +246,9 @@ class AudioGenerator:
         # Try Edge TTS first (better quality, voice variety)
         if self._check_edge_tts():
             try:
-                # Use get_event_loop which works with nest_asyncio
-                loop = asyncio.get_event_loop()
-                print(f"      [AudioGenerator] Starting Edge TTS with loop={loop}, voice_id={self.voice_id}")
-                loop.run_until_complete(self._generate_audio_edge_tts(text, output_path, rate, pitch))
+                # Python 3.10+ requires asyncio.run() or creating a new event loop
+                print(f"      [AudioGenerator] Starting Edge TTS with voice_id={self.voice_id}")
+                asyncio.run(self._generate_audio_edge_tts(text, output_path, rate, pitch))
                 print(f"      [AudioGenerator] Edge TTS SUCCESS with voice_id={self.voice_id}")
                 audio = AudioFileClip(output_path)
                 duration = audio.duration
