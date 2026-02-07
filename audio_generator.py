@@ -106,6 +106,12 @@ EDGE_TTS_VOICES = {
     # Gujarati voices
     "Gujarati - Male": "gu-IN-NiranjanNeural",
     "Gujarati - Female": "gu-IN-DhwaniNeural",
+    # Punjabi voices (Edge TTS not available - will use gTTS fallback)
+    "Punjabi - Male": "pa-IN-GurpreetNeural",
+    "Punjabi - Female": "pa-IN-VaaniNeural",
+    # Malayalam voices
+    "Malayalam - Male": "ml-IN-MidhunNeural",
+    "Malayalam - Female": "ml-IN-SobhanaNeural",
 }
 
 # gTTS fallback - language codes only (no voice variety)

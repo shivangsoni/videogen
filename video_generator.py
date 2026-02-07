@@ -529,8 +529,15 @@ class VideoGenerator:
             def __call__(self, message, end='\n'):
                 pass  # Suppress default output
         
+        # Write to temp location first, then move - avoids Windows file lock issues
+        import time
+        import gc
+        import shutil
+        
+        temp_output = output_path.replace('.mp4', '_encoding.mp4')
+        
         final_video.write_videofile(
-            output_path,
+            temp_output,
             fps=FPS,
             codec='libx264',
             audio_codec='aac',
@@ -542,19 +549,49 @@ class VideoGenerator:
             logger=None
         )
         
-        report_progress(0.95, "Encoding complete!")
+        report_progress(0.92, "Encoding complete!")
         
-        # Cleanup
-        report_progress(0.97, "Cleaning up temporary files...")
-        final_video.close()
-        audio.close()
+        # Cleanup - close all clips first BEFORE moving file
+        report_progress(0.94, "Releasing resources...")
+        try:
+            final_video.close()
+        except:
+            pass
+        try:
+            audio.close()
+        except:
+            pass
         for clip in background_clips:
             try:
                 clip.close()
             except:
                 pass
         
-        report_progress(0.99, "Finalizing...")
+        # Force garbage collection to release file handles on Windows
+        gc.collect()
+        time.sleep(1.0)  # Wait for Windows to release file handles
+        
+        # Move temp file to final location
+        report_progress(0.97, "Finalizing output...")
+        for attempt in range(3):
+            try:
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+                shutil.move(temp_output, output_path)
+                break
+            except Exception as e:
+                if attempt < 2:
+                    time.sleep(1.0)
+                    gc.collect()
+                else:
+                    # If move fails, try copy instead
+                    shutil.copy2(temp_output, output_path)
+                    try:
+                        os.remove(temp_output)
+                    except:
+                        pass
+        
+        report_progress(0.99, "Done!")
         print("\n" + "=" * 50)
         print("SUCCESS! Video generated!")
         print(f"   Output: {output_path}")

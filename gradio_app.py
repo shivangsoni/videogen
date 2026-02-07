@@ -187,6 +187,14 @@ VOICE_OPTIONS = {
         "Male": [("Niranjan", "gu-IN-NiranjanNeural")],
         "Female": [("Dhwani", "gu-IN-DhwaniNeural")],
     },
+    "Punjabi": {
+        "Male": [("Gurpreet", "pa-IN-GurpreetNeural")],
+        "Female": [("Vaani", "pa-IN-VaaniNeural")],
+    },
+    "Malayalam": {
+        "Male": [("Midhun", "ml-IN-MidhunNeural")],
+        "Female": [("Sobhana", "ml-IN-SobhanaNeural")],
+    },
 }
 
 # Hello translations for preview
@@ -215,6 +223,8 @@ HELLO_TRANSLATIONS = {
     "Marathi": "नमस्कार! मी असा बोलतो.",
     "Bengali": "নমস্কার! আমি এইভাবে কথা বলি.",
     "Gujarati": "નમસ્તે! હું આવી રીતે બોલું છું.",
+    "Punjabi": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ ਇਸ ਤਰ੍ਹਾਂ ਬੋਲਦਾ ਹਾਂ.",
+    "Malayalam": "നമസ്കാരം! ഞാൻ ഇങ്ങനെയാണ് സംസാരിക്കുന്നത്.",
 }
 
 
@@ -501,6 +511,8 @@ Your call to action.""",
                         "Marathi",
                         "Bengali",
                         "Gujarati",
+                        "Punjabi",
+                        "Malayalam",
                         "French",
                         "German",
                         "Spanish",
