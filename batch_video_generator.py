@@ -76,8 +76,6 @@ LANGUAGES = {
     "Marathi": {"voice_type": "Female", "voice_id": "mr-IN-AarohiNeural", "code": "mr"},
     "Bengali": {"voice_type": "Female", "voice_id": "bn-IN-TanishaaNeural", "code": "bn"},
     "Gujarati": {"voice_type": "Female", "voice_id": "gu-IN-DhwaniNeural", "code": "gu"},
-    "Malayalam": {"voice_type": "Female", "voice_id": "ml-IN-SobhanaNeural", "code": "ml"},
-    "Punjabi": {"voice_type": "Female", "voice_id": "pa-IN-VaaniNeural", "code": "pa"},
     # European Languages
     "Spanish": {"voice_type": "Female", "voice_id": "es-ES-ElviraNeural", "code": "es"},
     "French": {"voice_type": "Female", "voice_id": "fr-FR-DeniseNeural", "code": "fr"},
@@ -117,8 +115,6 @@ LANGUAGE_CATEGORIES = {
     "Marathi": "24",      # Entertainment
     "Bengali": "24",      # Entertainment
     "Gujarati": "24",     # Entertainment
-    "Malayalam": "24",    # Entertainment
-    "Punjabi": "24",      # Entertainment
     # European Languages
     "Spanish": "24",      # Entertainment
     "French": "22",       # People & Blogs
@@ -475,9 +471,9 @@ def process_folder(
     metadata = parse_metadata(metadata_file)
     youtube_info = parse_youtube_publish(publish_file)
     
-    print(f"Title: {youtube_info['title']}")
-    print(f"Keywords: {', '.join(metadata['keywords'])}")
-    print(f"Languages: {', '.join(languages)}")
+    safe_print(f"Title: {youtube_info['title']}")
+    safe_print(f"Keywords: {', '.join(metadata['keywords'])}")
+    safe_print(f"Languages: {', '.join(languages)}")
     
     # Generate videos for each language
     results = {"folder": folder_name, "status": "success", "videos": []}
@@ -489,7 +485,7 @@ def process_folder(
         
         # Skip if already exists (unless force regenerate)
         if output_path.exists():
-            print(f"\n  [{language}] Already exists: {output_filename}")
+            safe_print(f"\n  [{language}] Already exists: {output_filename}")
             results["videos"].append({
                 "language": language,
                 "path": str(output_path),
@@ -497,7 +493,7 @@ def process_folder(
             })
             continue
         
-        print(f"\n  [{language}] Generating...")
+        safe_print(f"\n  [{language}] Generating...")
         video_path = generate_video_for_language(
             script_text=script_text,
             keywords=metadata["keywords"],

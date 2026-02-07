@@ -187,14 +187,6 @@ VOICE_OPTIONS = {
         "Male": [("Niranjan", "gu-IN-NiranjanNeural")],
         "Female": [("Dhwani", "gu-IN-DhwaniNeural")],
     },
-    "Punjabi": {
-        "Male": [("Gurpreet", "pa-IN-GurpreetNeural")],
-        "Female": [("Vaani", "pa-IN-VaaniNeural")],
-    },
-    "Malayalam": {
-        "Male": [("Midhun", "ml-IN-MidhunNeural")],
-        "Female": [("Sobhana", "ml-IN-SobhanaNeural")],
-    },
 }
 
 # Hello translations for preview
@@ -223,8 +215,6 @@ HELLO_TRANSLATIONS = {
     "Marathi": "नमस्कार! मी असा बोलतो.",
     "Bengali": "নমস্কার! আমি এইভাবে কথা বলি.",
     "Gujarati": "નમસ્તે! હું આવી રીતે બોલું છું.",
-    "Punjabi": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ ਇਸ ਤਰ੍ਹਾਂ ਬੋਲਦਾ ਹਾਂ.",
-    "Malayalam": "നമസ്കാരം! ഞാൻ ഇങ്ങനെയാണ് സംസാരിക്കുന്നത്.",
 }
 
 
@@ -511,8 +501,6 @@ Your call to action.""",
                         "Marathi",
                         "Bengali",
                         "Gujarati",
-                        "Punjabi",
-                        "Malayalam",
                         "French",
                         "German",
                         "Spanish",
@@ -629,6 +617,10 @@ Your call to action.""",
                 
                 ###  To Cancel
                 - Click **Cancel** or simply **refresh the page**
+                
+                ###  Progress
+                - Real-time encoding progress shown during video rendering
+                - Watch the progress bar for frame-by-frame status
                 """
             )
 
@@ -667,7 +659,9 @@ Your call to action.""",
     )
 
 
-# Launch WITHOUT queue - refreshing page kills the job
+# Enable queue so gr.Progress() can push real-time updates to the browser
+demo.queue(max_size=1, default_concurrency_limit=1)
+
 if __name__ == "__main__":
     demo.launch(
         server_name="0.0.0.0",
@@ -675,4 +669,4 @@ if __name__ == "__main__":
         share=False,
     )
 
-# v2.2 - Removed queue, refresh page to cancel
+# v2.3 - Enabled queue for encoding progress, removed Punjabi/Malayalam

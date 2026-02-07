@@ -239,8 +239,6 @@ python batch_video_generator.py --folder "My Video Topic" --languages "English" 
 | Marathi | mr | mr-IN-AarohiNeural |
 | Bengali | bn | bn-IN-TanishaaNeural |
 | Gujarati | gu | gu-IN-DhwaniNeural |
-| Malayalam | ml | ml-IN-SobhanaNeural |
-| Punjabi | pa | pa-IN-VaaniNeural |
 
 #### European Languages
 | Language | Code | Voice |

@@ -75,10 +75,6 @@ VOICE_TO_LANGUAGE = {
     "Marathi - Female": "mr",
     "Gujarati - Male": "gu",
     "Gujarati - Female": "gu",
-    "Punjabi - Male": "pa",
-    "Punjabi - Female": "pa",
-    "Malayalam - Male": "ml",
-    "Malayalam - Female": "ml",
     "Indonesian - Male": "id",
     "Indonesian - Female": "id",
 }

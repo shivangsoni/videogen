@@ -517,17 +517,82 @@ class VideoGenerator:
         
         # Step 8: Export video (75% -> 98%)
         output_path = str(self.output_dir / output_filename)
-        report_progress(0.78, "Encoding video (this may take a minute)...")
         
-        # Custom logger to track encoding progress
-        class ProgressLogger:
-            def __init__(self, callback, total_frames):
-                self.callback = callback
-                self.total_frames = total_frames
-                self.last_pct = 0.78
+        total_frames = int(audio_duration * FPS)
+        report_progress(0.78, f"Encoding video ({total_frames} frames, ~{audio_duration:.0f}s)...")
+        
+        # Custom logger that tracks ffmpeg encoding progress in real-time
+        from proglog import ProgressBarLogger
+        
+        class EncodingProgressLogger(ProgressBarLogger):
+            """MoviePy-compatible logger that shows encoding progress.
             
-            def __call__(self, message, end='\n'):
-                pass  # Suppress default output
+            MoviePy does multiple passes (audio, then video). We detect new
+            passes by watching for 'total' resets, and show clean progress
+            only for the final (slow) frame-rendering pass.
+            """
+            def __init__(self, total_frames, progress_cb):
+                super().__init__()
+                self.total_frames = max(total_frames, 1)
+                self.progress_cb = progress_cb
+                self.pass_count = 0          # how many encoding passes we've seen
+                self.current_total = 1       # total for current pass
+                self.last_reported_pct = -1  # last % we printed (avoid spam)
+                import time as _time
+                self._time = _time
+                self.render_start = None     # set when slow pass begins
+            
+            def callback(self, **changes):
+                pass
+            
+            def bars_callback(self, bar, attr, value, old_value=None):
+                if attr == 'total' and isinstance(value, (int, float)) and value > 0:
+                    # A new 'total' signals start of a new encoding pass
+                    self.pass_count += 1
+                    self.current_total = int(value)
+                    self.last_reported_pct = -1
+                    
+                    if self.current_total > 500:
+                        # Large total = the slow frame rendering pass
+                        self.total_frames = self.current_total
+                        self.render_start = self._time.time()
+                        self.progress_cb(0.82, f"Rendering {self.total_frames} frames...")
+                    return
+                
+                if attr != 'index' or not isinstance(value, (int, float)):
+                    return
+                
+                pct = min(value / max(self.current_total, 1), 1.0)
+                report_pct = int(pct * 100)
+                
+                # Skip if we already reported this percentage
+                if report_pct <= self.last_reported_pct:
+                    return
+                
+                if self.render_start is not None:
+                    # SLOW PASS: frame rendering (82% -> 92% overall)
+                    # Report every 5%
+                    if report_pct % 5 != 0 and report_pct != 100:
+                        return
+                    self.last_reported_pct = report_pct
+                    overall = 0.82 + pct * 0.10
+                    elapsed = self._time.time() - self.render_start
+                    if pct > 0.03 and elapsed > 2:
+                        eta = elapsed / pct * (1.0 - pct)
+                        self.progress_cb(overall, f"Rendering: {report_pct}% ({int(value)}/{self.total_frames} frames, ETA {eta:.0f}s)")
+                    else:
+                        self.progress_cb(overall, f"Rendering: {report_pct}%")
+                else:
+                    # FAST PASSES: audio / muxing (78% -> 82% overall)
+                    # Report at 0%, 50%, 100% only
+                    if report_pct % 50 != 0:
+                        return
+                    self.last_reported_pct = report_pct
+                    label = "Audio" if self.pass_count <= 1 else "Preparing"
+                    overall = 0.78 + pct * 0.04
+                    self.progress_cb(overall, f"{label}: {report_pct}%")
+        
+        encoding_logger = EncodingProgressLogger(total_frames, report_progress)
         
         # Write to temp location first, then move - avoids Windows file lock issues
         import time
@@ -535,6 +600,8 @@ class VideoGenerator:
         import shutil
         
         temp_output = output_path.replace('.mp4', '_encoding.mp4')
+        # Explicit temp audio file path to avoid Windows TEMP_MPY lock issues
+        temp_audiofile = output_path.replace('.mp4', '_temp_audio.mp4')
         
         final_video.write_videofile(
             temp_output,
@@ -543,11 +610,21 @@ class VideoGenerator:
             audio_codec='aac',
             bitrate='4000k',
             audio_bitrate='128k',
-            threads=4,
+            threads=os.cpu_count() or 4,
             preset='ultrafast',
+            temp_audiofile=temp_audiofile,
+            remove_temp=True,
+            ffmpeg_params=['-movflags', '+faststart', '-tune', 'fastdecode'],
             verbose=False,
-            logger=None
+            logger=encoding_logger
         )
+        
+        # Clean up temp audio file (in case remove_temp failed)
+        try:
+            if os.path.exists(temp_audiofile):
+                os.remove(temp_audiofile)
+        except:
+            pass
         
         report_progress(0.92, "Encoding complete!")
         
