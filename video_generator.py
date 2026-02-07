@@ -527,20 +527,22 @@ class VideoGenerator:
         class EncodingProgressLogger(ProgressBarLogger):
             """MoviePy-compatible logger that shows encoding progress.
             
-            MoviePy does multiple passes (audio, then video). We detect new
-            passes by watching for 'total' resets, and show clean progress
-            only for the final (slow) frame-rendering pass.
+            MoviePy does multiple passes (audio, then video). We track
+            all passes and show cumulative progress that never goes backward.
+            Pass layout: audio prep (78-80%), video render (80-92%).
             """
             def __init__(self, total_frames, progress_cb):
                 super().__init__()
                 self.total_frames = max(total_frames, 1)
                 self.progress_cb = progress_cb
                 self.pass_count = 0          # how many encoding passes we've seen
+                self.render_pass = 0         # how many large (frame) passes we've seen
                 self.current_total = 1       # total for current pass
                 self.last_reported_pct = -1  # last % we printed (avoid spam)
+                self.highest_overall = 0.78  # never go below this (no backward jumps)
                 import time as _time
                 self._time = _time
-                self.render_start = None     # set when slow pass begins
+                self.render_start = None     # set when first frame pass begins
             
             def callback(self, **changes):
                 pass
@@ -553,10 +555,14 @@ class VideoGenerator:
                     self.last_reported_pct = -1
                     
                     if self.current_total > 500:
-                        # Large total = the slow frame rendering pass
+                        # Large total = a frame rendering pass
+                        self.render_pass += 1
                         self.total_frames = self.current_total
-                        self.render_start = self._time.time()
-                        self.progress_cb(0.82, f"Rendering {self.total_frames} frames...")
+                        if self.render_pass == 1:
+                            # First frame pass — start render timer
+                            self.render_start = self._time.time()
+                            self._report(0.80, f"Encoding video frames ({self.total_frames} frames)...")
+                        # For pass 2+, just keep going — no reset message
                     return
                 
                 if attr != 'index' or not isinstance(value, (int, float)):
@@ -569,28 +575,41 @@ class VideoGenerator:
                 if report_pct <= self.last_reported_pct:
                     return
                 
-                if self.render_start is not None:
-                    # SLOW PASS: frame rendering (82% -> 92% overall)
+                if self.render_pass > 0:
+                    # FRAME PASSES: 80% -> 92% overall
                     # Report every 5%
                     if report_pct % 5 != 0 and report_pct != 100:
                         return
                     self.last_reported_pct = report_pct
-                    overall = 0.82 + pct * 0.10
-                    elapsed = self._time.time() - self.render_start
+                    
+                    # For multiple render passes, combine progress:
+                    # pass1 covers 80-86%, pass2 covers 86-92%
+                    if self.render_pass == 1:
+                        overall = 0.80 + pct * 0.06
+                    else:
+                        overall = 0.86 + pct * 0.06
+                    
+                    elapsed = self._time.time() - self.render_start if self.render_start else 0
                     if pct > 0.03 and elapsed > 2:
                         eta = elapsed / pct * (1.0 - pct)
-                        self.progress_cb(overall, f"Rendering: {report_pct}% ({int(value)}/{self.total_frames} frames, ETA {eta:.0f}s)")
+                        step_label = "Writing" if self.render_pass > 1 else "Rendering"
+                        self._report(overall, f"{step_label}: {report_pct}% ({int(value)}/{self.total_frames} frames, ETA {eta:.0f}s)")
                     else:
-                        self.progress_cb(overall, f"Rendering: {report_pct}%")
+                        step_label = "Writing" if self.render_pass > 1 else "Rendering"
+                        self._report(overall, f"{step_label}: {report_pct}%")
                 else:
-                    # FAST PASSES: audio / muxing (78% -> 82% overall)
-                    # Report at 0%, 50%, 100% only
+                    # FAST PASSES: audio prep (78% -> 80% overall)
                     if report_pct % 50 != 0:
                         return
                     self.last_reported_pct = report_pct
-                    label = "Audio" if self.pass_count <= 1 else "Preparing"
-                    overall = 0.78 + pct * 0.04
-                    self.progress_cb(overall, f"{label}: {report_pct}%")
+                    overall = 0.78 + pct * 0.02
+                    self._report(overall, f"Preparing audio: {report_pct}%")
+            
+            def _report(self, overall, msg):
+                """Report progress, never going backward."""
+                overall = max(overall, self.highest_overall)
+                self.highest_overall = overall
+                self.progress_cb(overall, msg)
         
         encoding_logger = EncodingProgressLogger(total_frames, report_progress)
         
