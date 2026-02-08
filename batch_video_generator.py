@@ -379,63 +379,85 @@ class YouTubePublisher:
         tags: List[str] = None,
         privacy: str = "private",  # private, unlisted, public
         category_id: str = "22",   # 22 = People & Blogs
-        made_for_kids: bool = False
+        made_for_kids: bool = False,
+        max_retries: int = 3
     ) -> Optional[str]:
-        """Publish a video to YouTube"""
+        """Publish a video to YouTube with retry logic"""
         
         if not self.youtube:
             print("[ERROR] Not authenticated. Call authenticate() first.")
             return None
         
-        try:
-            from googleapiclient.http import MediaFileUpload
-            
-            # Prepare video metadata
-            body = {
-                'snippet': {
-                    'title': title[:100],  # Max 100 chars
-                    'description': description[:5000],  # Max 5000 chars
-                    'tags': tags[:500] if tags else [],  # Max 500 tags
-                    'categoryId': category_id
-                },
-                'status': {
-                    'privacyStatus': privacy,
-                    'selfDeclaredMadeForKids': made_for_kids,
-                    'shorts': {
-                        'shortsVideoMetadata': {}  # Mark as Short
-                    }
+        import time as _time
+        from googleapiclient.http import MediaFileUpload
+        from googleapiclient.errors import HttpError
+        
+        # Prepare video metadata
+        body = {
+            'snippet': {
+                'title': title[:100],  # Max 100 chars
+                'description': description[:5000],  # Max 5000 chars
+                'tags': tags[:500] if tags else [],  # Max 500 tags
+                'categoryId': category_id
+            },
+            'status': {
+                'privacyStatus': privacy,
+                'selfDeclaredMadeForKids': made_for_kids,
+                'shorts': {
+                    'shortsVideoMetadata': {}  # Mark as Short
                 }
             }
-            
-            # Upload video
-            media = MediaFileUpload(
-                str(video_path),
-                mimetype='video/mp4',
-                resumable=True
-            )
-            
-            print(f"  Uploading: {video_path.name}")
-            request = self.youtube.videos().insert(
-                part='snippet,status',
-                body=body,
-                media_body=media
-            )
-            
-            response = None
-            while response is None:
-                status, response = request.next_chunk()
-                if status:
-                    print(f"    Upload progress: {int(status.progress() * 100)}%")
-            
-            video_id = response.get('id')
-            video_url = f"https://youtube.com/shorts/{video_id}"
-            print(f"  [OK] Published: {video_url}")
-            
-            return video_id
-            
-        except Exception as e:
-            print(f"  [ERROR] Upload failed: {e}")
-            return None
+        }
+        
+        for attempt in range(1, max_retries + 1):
+            try:
+                # Upload video with 5MB chunks for reliability
+                media = MediaFileUpload(
+                    str(video_path),
+                    mimetype='video/mp4',
+                    resumable=True,
+                    chunksize=5 * 1024 * 1024  # 5MB chunks
+                )
+                
+                if attempt == 1:
+                    print(f"  Uploading: {video_path.name}")
+                else:
+                    print(f"  Retry {attempt}/{max_retries}: {video_path.name}")
+                
+                request = self.youtube.videos().insert(
+                    part='snippet,status',
+                    body=body,
+                    media_body=media
+                )
+                
+                response = None
+                while response is None:
+                    status, response = request.next_chunk()
+                    if status:
+                        print(f"    Upload progress: {int(status.progress() * 100)}%")
+                
+                video_id = response.get('id')
+                video_url = f"https://youtube.com/shorts/{video_id}"
+                print(f"  [OK] Published: {video_url}")
+                
+                return video_id
+                
+            except HttpError as e:
+                if e.resp.status in (500, 502, 503, 504) and attempt < max_retries:
+                    wait = 2 ** attempt * 5  # 10s, 20s, 40s
+                    print(f"  [WARN] Server error ({e.resp.status}), retrying in {wait}s...")
+                    _time.sleep(wait)
+                else:
+                    print(f"  [ERROR] Upload failed: {e}")
+                    return None
+            except Exception as e:
+                if attempt < max_retries:
+                    wait = 2 ** attempt * 5
+                    print(f"  [WARN] Upload error: {e}, retrying in {wait}s...")
+                    _time.sleep(wait)
+                else:
+                    print(f"  [ERROR] Upload failed after {max_retries} attempts: {e}")
+                    return None
 
 
 # ============================================================================
@@ -447,6 +469,7 @@ def process_folder(
     languages: List[str],
     publish: bool = False,
     youtube_account: str = None,
+    publisher: 'YouTubePublisher' = None,
     use_anime_clips: bool = False,
     use_giphy_clips: bool = False,
     use_pixabay_clips: bool = False
@@ -486,36 +509,53 @@ def process_folder(
         # Skip if already exists (unless force regenerate)
         if output_path.exists():
             safe_print(f"\n  [{language}] Already exists: {output_filename}")
-            results["videos"].append({
+            video_result = {
                 "language": language,
                 "path": str(output_path),
                 "status": "exists"
-            })
-            continue
-        
-        safe_print(f"\n  [{language}] Generating...")
-        video_path = generate_video_for_language(
-            script_text=script_text,
-            keywords=metadata["keywords"],
-            language=language,
-            output_path=output_path,
-            use_anime_clips=use_anime_clips,
-            use_giphy_clips=use_giphy_clips,
-            use_pixabay_clips=use_pixabay_clips
-        )
-        
-        if video_path:
-            results["videos"].append({
-                "language": language,
-                "path": str(video_path),
-                "status": "generated"
-            })
+            }
         else:
-            results["videos"].append({
-                "language": language,
-                "path": None,
-                "status": "failed"
-            })
+            safe_print(f"\n  [{language}] Generating...")
+            video_path = generate_video_for_language(
+                script_text=script_text,
+                keywords=metadata["keywords"],
+                language=language,
+                output_path=output_path,
+                use_anime_clips=use_anime_clips,
+                use_giphy_clips=use_giphy_clips,
+                use_pixabay_clips=use_pixabay_clips
+            )
+            
+            if video_path:
+                video_result = {
+                    "language": language,
+                    "path": str(video_path),
+                    "status": "generated"
+                }
+            else:
+                video_result = {
+                    "language": language,
+                    "path": None,
+                    "status": "failed"
+                }
+        
+        results["videos"].append(video_result)
+        
+        # Publish immediately after each video (don't wait for all)
+        if publish and publisher and publisher.youtube and video_result["status"] in ("generated", "exists") and video_result["path"]:
+            title = f"{youtube_info['title']} ({language})"
+            category_id = LANGUAGE_CATEGORIES.get(language, "22")
+            tags = metadata.get("keywords", []) + ["shorts", "viral", language.lower()]
+            
+            print(f"  Publishing {language} video (Category: {category_id})...")
+            publisher.publish_video(
+                video_path=Path(video_result["path"]),
+                title=title,
+                description=youtube_info["description"],
+                tags=tags,
+                category_id=category_id,
+                privacy="private"
+            )
     
     return results
 
@@ -668,36 +708,12 @@ def main():
             languages=languages,
             publish=args.publish,
             youtube_account=args.account,
+            publisher=publisher,
             use_anime_clips=args.anime,
             use_giphy_clips=args.giphy,
             use_pixabay_clips=args.pixabay
         )
         all_results.append(results)
-        
-        # Publish videos if requested
-        if args.publish and publisher and publisher.youtube:
-            youtube_info = parse_youtube_publish(folder / "youtube_publish.txt")
-            metadata = parse_metadata(folder / "metadata.txt")
-            
-            for video in results["videos"]:
-                # Publish generated OR existing videos
-                if video["status"] in ("generated", "exists") and video["path"]:
-                    lang = video["language"]
-                    title = f"{youtube_info['title']} ({lang})"
-                    category_id = LANGUAGE_CATEGORIES.get(lang, "22")
-                    
-                    # Build tags from metadata keywords + language
-                    tags = metadata.get("keywords", []) + ["shorts", "viral", lang.lower()]
-                    
-                    print(f"\n  Publishing {lang} video (Category: {category_id})...")
-                    publisher.publish_video(
-                        video_path=Path(video["path"]),
-                        title=title,
-                        description=youtube_info["description"],
-                        tags=tags,
-                        category_id=category_id,
-                        privacy="private"  # Start as private for review
-                    )
     
     # Summary
     print(f"\n{'#'*60}")

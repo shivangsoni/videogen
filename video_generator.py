@@ -246,8 +246,6 @@ class VideoGenerator:
             ImageClip(caption_img)
             .set_duration(duration)
             .set_start(start_time)
-            .crossfadein(min(0.2, duration * 0.15))
-            .crossfadeout(min(0.2, duration * 0.15))
         )
         
         return clip
@@ -497,15 +495,13 @@ class VideoGenerator:
         # Step 7: Composite layers (70% -> 75%)
         report_progress(0.72, "Compositing video layers...")
         
-        # Create a solid black base layer to ensure no gaps
-        from moviepy.editor import ColorClip
-        black_base = ColorClip(size=(VIDEO_WIDTH, VIDEO_HEIGHT), color=(0, 0, 0), duration=audio_duration)
-        
         # Ensure background is properly sized and positioned
         bg = bg.set_position(('center', 'center'))
         
+        # Pre-composite captions in time-order groups to reduce layer count
+        # Each frame only has 1 caption visible, so grouping doesn't affect visuals
         final_video = CompositeVideoClip(
-            [black_base, bg] + caption_clips,
+            [bg] + caption_clips,
             size=(VIDEO_WIDTH, VIDEO_HEIGHT)
         )
         

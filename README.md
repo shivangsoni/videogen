@@ -216,17 +216,59 @@ description: Your video description.
 ### Publish All Languages
 
 ```bash
-# Publish to all 19 languages (one at a time)
-python publish_all.py "My Video Topic" myaccount
+# Publish to all 27 languages (one at a time)
+python batch_video_generator.py --folder "My Video Topic" --publish --account myaccount
 
 # Publish specific languages only
-python publish_all.py "My Video Topic" myaccount "English,Hindi,Spanish"
+python batch_video_generator.py --folder "My Video Topic" --languages "English,Hindi,Spanish" --publish --account myaccount
 
 # Generate single language
 python batch_video_generator.py --folder "My Video Topic" --languages "English" --publish --account myaccount
 ```
 
-### Supported Languages (28 Languages)
+## Background Batch Runner
+
+For long batch runs (27 languages can take **4-8 hours**), use `run_batch.ps1` to run the batch as a **background process** that:
+- ✅ Survives closing VS Code / terminal
+- ✅ Prevents Windows from sleeping
+- ✅ Logs output in real-time to `batch_log.txt`
+- ✅ Publishes each video immediately after generation
+- ✅ Retries failed uploads (3 attempts with exponential backoff)
+- ✅ Skips already-generated videos on re-run
+
+### Start Batch
+
+```powershell
+# Generate + publish all 27 languages
+.\run_batch.ps1 -Folder "hydration_health" -Publish -Account "prity"
+
+# Generate only (no YouTube publishing)
+.\run_batch.ps1 -Folder "hydration_health"
+
+# Specific languages only
+.\run_batch.ps1 -Folder "hydration_health" -Publish -Account "prity" -Languages "English,Hindi,Spanish"
+```
+
+### Monitor Progress
+
+```powershell
+# Tail the live log
+Get-Content batch_log.txt -Tail 20 -Wait
+
+# Quick status summary (published, errors, latest activity)
+.\run_batch.ps1 -Status
+```
+
+### Stop Batch
+
+```powershell
+# Stop the batch and restore Windows sleep settings
+.\run_batch.ps1 -Stop
+```
+
+> **Note:** After the batch finishes, run `.\run_batch.ps1 -Stop` to restore Windows sleep/standby timeouts.
+
+### Supported Languages (27 Languages)
 
 #### Indian Languages
 | Language | Code | Voice |
