@@ -7,6 +7,8 @@ import uuid
 import tempfile
 import shutil
 import threading
+import json
+import base64
 from pathlib import Path
 
 # Load environment variables (optional - for local development)
@@ -79,6 +81,10 @@ PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY", "")
 # YouTube credentials directory
 YOUTUBE_CREDS_DIR = Path(__file__).parent / ".youtube_creds"
 
+# Optional: load OAuth credentials from env (HF Secrets)
+YOUTUBE_OAUTH_CREDENTIALS_JSON = os.environ.get("YOUTUBE_OAUTH_CREDENTIALS_JSON", "")
+YOUTUBE_OAUTH_CREDENTIALS_B64 = os.environ.get("YOUTUBE_OAUTH_CREDENTIALS_B64", "")
+
 # YouTube category IDs by language
 LANGUAGE_CATEGORIES = {
     "English": "22", "Hindi": "24", "Kannada": "24", "Telugu": "24",
@@ -101,10 +107,25 @@ _yt_account_name = None
 
 
 def get_youtube_accounts() -> list:
-    """List available YouTube accounts from .youtube_creds/"""
-    if not YOUTUBE_CREDS_DIR.exists():
-        return []
-    return [f.stem for f in YOUTUBE_CREDS_DIR.glob("*.json")]
+    """List available YouTube accounts from .youtube_creds/ or env"""
+    accounts = []
+    if YOUTUBE_CREDS_DIR.exists():
+        accounts.extend([f.stem for f in YOUTUBE_CREDS_DIR.glob("*.json")])
+    if YOUTUBE_OAUTH_CREDENTIALS_JSON or YOUTUBE_OAUTH_CREDENTIALS_B64:
+        accounts.insert(0, "env")
+    return accounts
+
+
+def _load_env_credentials() -> str:
+    """Return OAuth credentials JSON string from env, if present"""
+    if YOUTUBE_OAUTH_CREDENTIALS_JSON:
+        return YOUTUBE_OAUTH_CREDENTIALS_JSON
+    if YOUTUBE_OAUTH_CREDENTIALS_B64:
+        try:
+            return base64.b64decode(YOUTUBE_OAUTH_CREDENTIALS_B64).decode("utf-8")
+        except Exception:
+            return ""
+    return ""
 
 
 def youtube_authenticate(account_name: str) -> str:
@@ -121,17 +142,23 @@ def youtube_authenticate(account_name: str) -> str:
         
         SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
         
-        creds_file = YOUTUBE_CREDS_DIR / f"{account_name}.json"
-        if not creds_file.exists():
-            return f"❌ Credentials not found for '{account_name}'"
-        
-        creds = Credentials.from_authorized_user_file(str(creds_file), SCOPES)
+        if account_name == "env":
+            env_json = _load_env_credentials()
+            if not env_json:
+                return "❌ Env credentials not found. Set YOUTUBE_OAUTH_CREDENTIALS_JSON or YOUTUBE_OAUTH_CREDENTIALS_B64"
+            creds = Credentials.from_authorized_user_info(json.loads(env_json), SCOPES)
+        else:
+            creds_file = YOUTUBE_CREDS_DIR / f"{account_name}.json"
+            if not creds_file.exists():
+                return f"❌ Credentials not found for '{account_name}'"
+            creds = Credentials.from_authorized_user_file(str(creds_file), SCOPES)
         
         # Refresh if expired
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
-            # Save refreshed token
-            creds_file.write_text(creds.to_json())
+            # Save refreshed token (file-based only)
+            if account_name != "env":
+                creds_file.write_text(creds.to_json())
         
         _yt_credentials = creds
         _yt_service = build('youtube', 'v3', credentials=creds)
@@ -876,6 +903,8 @@ Your call to action.""",
             with gr.Accordion("🔑 YouTube Authentication", open=False):
                 saved_accounts = get_youtube_accounts()
                 
+                gr.Markdown("**HF Secrets option:** set `YOUTUBE_OAUTH_CREDENTIALS_JSON` (or `YOUTUBE_OAUTH_CREDENTIALS_B64`) to use the `env` account.")
+
                 if saved_accounts:
                     gr.Markdown("**Use a saved account:**")
                     with gr.Row():
