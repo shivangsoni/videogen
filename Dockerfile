@@ -25,7 +25,9 @@ RUN pip install --no-cache-dir \
     imageio-ffmpeg>=0.4.7 \
     proglog>=0.1.10 \
     decorator>=4.0.2 \
-    tqdm>=4.60.0
+    tqdm>=4.60.0 \
+    google-auth-oauthlib>=1.0.0 \
+    google-api-python-client>=2.100.0
 
 # Copy app files
 COPY . .
