@@ -8,3 +8,7 @@ edge-tts==6.1.9
 googletrans==4.0.0-rc1
 python-dotenv==1.0.0
 flask==3.0.0
+
+# YouTube publishing
+google-auth-oauthlib>=1.0.0
+google-api-python-client>=2.100.0

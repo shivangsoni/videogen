@@ -69,11 +69,256 @@ from script_parser import parse_script, get_full_narration_text
 from video_generator import VideoGenerator
 from stock_video_fetcher import StockVideoFetcher
 from audio_generator import AudioGenerator, EDGE_TTS_VOICES
+from translator import Translator
 
 # Get API keys from environment (set in HF Spaces secrets)
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
 GIPHY_API_KEY = os.environ.get("GIPHY_API_KEY", "")
 PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY", "")
+
+# YouTube credentials directory
+YOUTUBE_CREDS_DIR = Path(__file__).parent / ".youtube_creds"
+
+# YouTube category IDs by language
+LANGUAGE_CATEGORIES = {
+    "English": "22", "Hindi": "24", "Kannada": "24", "Telugu": "24",
+    "Tamil": "24", "Marathi": "24", "Bengali": "24", "Gujarati": "24",
+    "Spanish": "24", "French": "22", "German": "22", "Portuguese": "24",
+    "Italian": "22", "Russian": "24", "Dutch": "22", "Polish": "22",
+    "Swedish": "22", "Norwegian": "22", "Danish": "22", "Turkish": "24",
+    "Japanese": "24", "Korean": "24", "Chinese": "24", "Thai": "24",
+    "Vietnamese": "24", "Indonesian": "24", "Arabic": "24",
+}
+
+# ============================================================================
+# YOUTUBE PUBLISHING
+# ============================================================================
+
+# Global YouTube state
+_yt_credentials = None
+_yt_service = None
+_yt_account_name = None
+
+
+def get_youtube_accounts() -> list:
+    """List available YouTube accounts from .youtube_creds/"""
+    if not YOUTUBE_CREDS_DIR.exists():
+        return []
+    return [f.stem for f in YOUTUBE_CREDS_DIR.glob("*.json")]
+
+
+def youtube_authenticate(account_name: str) -> str:
+    """Authenticate with a saved YouTube account"""
+    global _yt_credentials, _yt_service, _yt_account_name
+    
+    if not account_name:
+        return "❌ Please select an account"
+    
+    try:
+        from google.oauth2.credentials import Credentials
+        from googleapiclient.discovery import build
+        from google.auth.transport.requests import Request
+        
+        SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
+        
+        creds_file = YOUTUBE_CREDS_DIR / f"{account_name}.json"
+        if not creds_file.exists():
+            return f"❌ Credentials not found for '{account_name}'"
+        
+        creds = Credentials.from_authorized_user_file(str(creds_file), SCOPES)
+        
+        # Refresh if expired
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            # Save refreshed token
+            creds_file.write_text(creds.to_json())
+        
+        _yt_credentials = creds
+        _yt_service = build('youtube', 'v3', credentials=creds)
+        _yt_account_name = account_name
+        
+        return f"✅ Authenticated as: {account_name}"
+        
+    except ImportError:
+        return "❌ Google API libraries not installed. Run: pip install google-auth-oauthlib google-api-python-client"
+    except Exception as e:
+        return f"❌ Authentication failed: {e}"
+
+
+def youtube_setup_new_account(account_name: str, client_secret_json: str) -> str:
+    """Set up a new YouTube account using client secret JSON content"""
+    global _yt_credentials, _yt_service, _yt_account_name
+    
+    if not account_name or not account_name.strip():
+        return "❌ Please enter an account name"
+    if not client_secret_json or not client_secret_json.strip():
+        return "❌ Please paste the client_secret.json content"
+    
+    try:
+        import json as _json
+        from google_auth_oauthlib.flow import InstalledAppFlow
+        from googleapiclient.discovery import build
+        
+        SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
+        
+        # Parse the JSON
+        secret_data = _json.loads(client_secret_json)
+        
+        # Save temporarily for the flow
+        temp_secret = Path(tempfile.gettempdir()) / f"client_secret_{uuid.uuid4().hex[:8]}.json"
+        temp_secret.write_text(_json.dumps(secret_data))
+        
+        try:
+            flow = InstalledAppFlow.from_client_secrets_file(str(temp_secret), SCOPES)
+            credentials = flow.run_local_server(port=8080, open_browser=True)
+        finally:
+            temp_secret.unlink(missing_ok=True)
+        
+        # Save credentials
+        YOUTUBE_CREDS_DIR.mkdir(exist_ok=True)
+        creds_file = YOUTUBE_CREDS_DIR / f"{account_name.strip()}.json"
+        creds_file.write_text(credentials.to_json())
+        
+        _yt_credentials = credentials
+        _yt_service = build('youtube', 'v3', credentials=credentials)
+        _yt_account_name = account_name.strip()
+        
+        return f"✅ Account '{account_name.strip()}' set up and authenticated! You can now publish videos."
+        
+    except ImportError:
+        return "❌ Google API libraries not installed. Run: pip install google-auth-oauthlib google-api-python-client"
+    except _json.JSONDecodeError:
+        return "❌ Invalid JSON. Please paste the full content of your client_secret.json file."
+    except Exception as e:
+        return f"❌ Setup failed: {e}"
+
+
+def translate_text_for_youtube(text: str, language: str) -> str:
+    """Translate text to the target language for YouTube title/description"""
+    if language == "English" or not text.strip():
+        return text
+    try:
+        translator = Translator(target_language=f"{language} - Female")
+        translated = translator.translate(text)
+        return translated if translated else text
+    except Exception as e:
+        print(f"[YouTube] Translation failed: {e}")
+        return text
+
+
+def publish_to_youtube(
+    video_path: str,
+    title: str,
+    description: str,
+    language: str,
+    privacy: str,
+    auto_translate: bool,
+    progress=gr.Progress()
+) -> str:
+    """Publish the generated video to YouTube"""
+    global _yt_service
+    
+    if not _yt_service:
+        return "❌ Not authenticated. Please authenticate with YouTube first."
+    
+    if not video_path:
+        return "❌ No video to publish. Generate a video first."
+    
+    if not Path(video_path).exists():
+        return "❌ Video file not found. Generate a new video."
+    
+    if not title.strip():
+        return "❌ Please enter a video title."
+    
+    try:
+        import time as _time
+        from googleapiclient.http import MediaFileUpload
+        from googleapiclient.errors import HttpError
+        
+        progress(0.1, desc="Preparing upload...")
+        
+        # Auto-translate title and description if needed
+        final_title = title
+        final_description = description
+        if auto_translate and language != "English":
+            progress(0.15, desc=f"Translating to {language}...")
+            final_title = translate_text_for_youtube(title, language)
+            final_description = translate_text_for_youtube(description, language)
+        
+        # Add #shorts hashtag
+        if "#shorts" not in final_description.lower():
+            final_description += "\n\n#shorts"
+        
+        category_id = LANGUAGE_CATEGORIES.get(language, "22")
+        
+        body = {
+            'snippet': {
+                'title': final_title[:100],
+                'description': final_description[:5000],
+                'tags': ['shorts', 'viral', language.lower()],
+                'categoryId': category_id
+            },
+            'status': {
+                'privacyStatus': privacy.lower(),
+                'selfDeclaredMadeForKids': False,
+                'shorts': {'shortsVideoMetadata': {}}
+            }
+        }
+        
+        media = MediaFileUpload(
+            video_path,
+            mimetype='video/mp4',
+            resumable=True,
+            chunksize=5 * 1024 * 1024
+        )
+        
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            try:
+                progress(0.2, desc=f"Uploading to YouTube{' (retry ' + str(attempt) + ')' if attempt > 1 else ''}...")
+                
+                request = _yt_service.videos().insert(
+                    part='snippet,status',
+                    body=body,
+                    media_body=media
+                )
+                
+                response = None
+                while response is None:
+                    status, response = request.next_chunk()
+                    if status:
+                        pct = 0.2 + (status.progress() * 0.7)
+                        progress(pct, desc=f"Uploading: {int(status.progress() * 100)}%")
+                
+                video_id = response.get('id')
+                video_url = f"https://youtube.com/shorts/{video_id}"
+                
+                progress(1.0, desc="✅ Published!")
+                
+                lang_note = f" ({language})" if language != "English" else ""
+                return f"✅ Published to YouTube!\n\n🔗 {video_url}\n\n📺 Title: {final_title}{lang_note}\n🔒 Privacy: {privacy}"
+                
+            except HttpError as e:
+                if e.resp.status in (500, 502, 503, 504) and attempt < max_retries:
+                    wait = 2 ** attempt * 5
+                    progress(0.2, desc=f"Server error, retrying in {wait}s...")
+                    _time.sleep(wait)
+                else:
+                    return f"❌ Upload failed: {e}"
+            except Exception as e:
+                if attempt < max_retries:
+                    wait = 2 ** attempt * 5
+                    progress(0.2, desc=f"Error, retrying in {wait}s...")
+                    _time.sleep(wait)
+                else:
+                    return f"❌ Upload failed after {max_retries} attempts: {e}"
+        
+        return "❌ Upload failed after all retries"
+        
+    except ImportError:
+        return "❌ Google API libraries not installed. Run: pip install google-auth-oauthlib google-api-python-client"
+    except Exception as e:
+        return f"❌ Error: {e}"
 
 # Voice options organized by language and gender
 VOICE_OPTIONS = {
@@ -624,6 +869,89 @@ Your call to action.""",
                 """
             )
 
+            # YouTube Publishing Section
+            gr.Markdown("---")
+            gr.Markdown("### 📤 Publish to YouTube")
+            
+            with gr.Accordion("🔑 YouTube Authentication", open=False):
+                saved_accounts = get_youtube_accounts()
+                
+                if saved_accounts:
+                    gr.Markdown("**Use a saved account:**")
+                    with gr.Row():
+                        yt_account_dropdown = gr.Dropdown(
+                            label="Saved Account",
+                            choices=saved_accounts,
+                            value=saved_accounts[0] if saved_accounts else None,
+                            info="Select a previously configured account",
+                        )
+                        yt_auth_btn = gr.Button("🔐 Authenticate", size="sm")
+                else:
+                    yt_account_dropdown = gr.Dropdown(
+                        label="Saved Account",
+                        choices=[],
+                        value=None,
+                        visible=False,
+                    )
+                    yt_auth_btn = gr.Button("🔐 Authenticate", visible=False, size="sm")
+                
+                gr.Markdown("**Or set up a new account:**")
+                yt_new_account_name = gr.Textbox(
+                    label="Account Name",
+                    placeholder="e.g., mychannel",
+                    info="A name to identify this YouTube account",
+                )
+                yt_client_secret = gr.Textbox(
+                    label="Client Secret JSON",
+                    placeholder='Paste the full content of your client_secret.json file here',
+                    lines=3,
+                    info="From Google Cloud Console > OAuth 2.0 credentials",
+                )
+                yt_setup_btn = gr.Button("⚙️ Set Up New Account", size="sm")
+                
+                yt_auth_status = gr.Textbox(
+                    label="Auth Status",
+                    interactive=False,
+                    value="Not authenticated",
+                )
+            
+            yt_title = gr.Textbox(
+                label="📺 Video Title",
+                placeholder="Enter your YouTube Shorts title",
+                info="Max 100 characters. Auto-translates to video language.",
+                max_lines=1,
+            )
+            yt_description = gr.Textbox(
+                label="📝 Description",
+                placeholder="Enter video description. #shorts will be added automatically.",
+                lines=3,
+                info="Max 5000 characters. Auto-translates to video language.",
+            )
+            with gr.Row():
+                yt_privacy = gr.Dropdown(
+                    label="🔒 Privacy",
+                    choices=["Private", "Unlisted", "Public"],
+                    value="Private",
+                    info="Start with Private, change later on YouTube",
+                )
+                yt_auto_translate = gr.Checkbox(
+                    label="🌐 Auto-translate title & description",
+                    value=True,
+                    info="Translate to the selected video language",
+                )
+            
+            yt_publish_btn = gr.Button(
+                "📤 Publish to YouTube",
+                variant="primary",
+                size="lg",
+            )
+            
+            yt_publish_result = gr.Textbox(
+                label="Publish Result",
+                interactive=False,
+                lines=4,
+            )
+
     # Connect the generate button
     generate_btn.click(
         fn=generate_video,
@@ -658,6 +986,27 @@ Your call to action.""",
         outputs=voice_preview,
     )
 
+    # YouTube auth button
+    yt_auth_btn.click(
+        fn=youtube_authenticate,
+        inputs=[yt_account_dropdown],
+        outputs=yt_auth_status,
+    )
+
+    # YouTube setup new account button
+    yt_setup_btn.click(
+        fn=youtube_setup_new_account,
+        inputs=[yt_new_account_name, yt_client_secret],
+        outputs=yt_auth_status,
+    )
+
+    # YouTube publish button
+    yt_publish_btn.click(
+        fn=publish_to_youtube,
+        inputs=[video_output, yt_title, yt_description, language, yt_privacy, yt_auto_translate],
+        outputs=yt_publish_result,
+    )
+
 
 # Enable queue so gr.Progress() can push real-time updates to the browser
 demo.queue(max_size=1, default_concurrency_limit=1)
@@ -669,4 +1018,4 @@ if __name__ == "__main__":
         share=False,
     )
 
-# v2.3 - Enabled queue for encoding progress, removed Punjabi/Malayalam
+# v2.4 - Added YouTube publishing with OAuth, auto-translate title/description
