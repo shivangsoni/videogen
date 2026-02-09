@@ -9,6 +9,7 @@ import shutil
 import threading
 import json
 import base64
+import requests
 from pathlib import Path
 
 # Load environment variables (optional - for local development)
@@ -77,6 +78,39 @@ from translator import Translator
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
 GIPHY_API_KEY = os.environ.get("GIPHY_API_KEY", "")
 PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY", "")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+
+# Groq API (for script generation)
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+# Topic presets for one-click script generation
+TOPIC_PRESETS = [
+    {
+        "label": "Hydration & Morning Water",
+        "topic": "Your health begins with how you treat your body before the first bite of food. Hydration in the morning changes everything.",
+        "keywords": "hydration, water, morning routine, health, wellness, energy"
+    },
+    {
+        "label": "Discipline Over Motivation",
+        "topic": "You don’t need motivation. You need discipline. Small consistent actions beat big bursts of effort.",
+        "keywords": "discipline, consistency, habits, mindset, success"
+    },
+    {
+        "label": "The 1% Rule",
+        "topic": "Improve 1% every day. Small wins compound into massive transformation over time.",
+        "keywords": "self improvement, compounding, habits, growth, consistency"
+    },
+    {
+        "label": "Sleep Quality Matters",
+        "topic": "It’s not just how long you sleep. It’s how well you sleep. Fix your sleep quality and everything improves.",
+        "keywords": "sleep, recovery, health, focus, energy"
+    },
+    {
+        "label": "Custom (write your own)",
+        "topic": "",
+        "keywords": ""
+    }
+]
 
 # YouTube credentials directory
 YOUTUBE_CREDS_DIR = Path(__file__).parent / ".youtube_creds"
@@ -541,6 +575,128 @@ def preview_voice(language: str, voice_type: str, voice_name: str):
         return None
 
 
+def update_topic_fields(selected_label: str):
+    """Populate topic and keywords based on preset selection"""
+    for preset in TOPIC_PRESETS:
+        if preset["label"] == selected_label:
+            return preset["topic"], preset["keywords"]
+    return "", ""
+
+
+def _format_hashtags(keywords: str) -> str:
+    tags = []
+    for kw in [k.strip() for k in keywords.split(",") if k.strip()]:
+        tag = "#" + "".join(ch for ch in kw if ch.isalnum() or ch == " ").strip().replace(" ", "")
+        if tag != "#":
+            tags.append(tag)
+    if "#shorts" not in [t.lower() for t in tags]:
+        tags.append("#shorts")
+    return " ".join(tags)
+
+
+def generate_script_from_topic(
+    topic: str,
+    keywords: str,
+    language: str,
+    progress=gr.Progress()
+):
+    """Generate script + keywords + title + description from topic using Groq"""
+    if not topic.strip():
+        raise gr.Error("Please enter a topic")
+    if not GROQ_API_KEY:
+        raise gr.Error("GROQ_API_KEY not set. Add it to Space secrets.")
+
+    prompt = f"""Create a YouTube Shorts script about: {topic}
+Keywords to use: {keywords or 'none'}
+
+Follow this EXACT format:
+
+SCRIPT:
+Hook (0-2s):
+[One powerful opening line that stops scrolling]
+
+Core:
+[4-7 short punchy lines, each on its own line]
+[Use line breaks between thoughts]
+[Keep each line under 10 words]
+
+End (CTA):
+[Call to action - save/follow/share]
+
+TITLE:
+[Catchy YouTube title under 60 chars, use emotion words]
+
+DESCRIPTION:
+[3-4 lines with emojis, include the hook and CTA]
+
+Return ONLY the content in this format, no explanations."""
+
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a viral YouTube Shorts script writer. Create punchy, impactful content that hooks viewers in 2 seconds and delivers value in under 60 seconds. Use short sentences. Be direct. No fluff."
+            },
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.8,
+        "max_tokens": 1000
+    }
+
+    progress(0.1, desc="Generating script with Groq...")
+    response = requests.post(GROQ_API_URL, headers=headers, json=data, timeout=60)
+    response.raise_for_status()
+
+    raw = response.json()["choices"][0]["message"]["content"].strip()
+
+    # Parse response
+    script = ""
+    title = ""
+    description = ""
+    current_section = None
+
+    for line in raw.split("\n"):
+        line_lower = line.lower().strip()
+        if line_lower.startswith("script:"):
+            current_section = "script"
+            continue
+        elif line_lower.startswith("title:"):
+            current_section = "title"
+            continue
+        elif line_lower.startswith("description:"):
+            current_section = "description"
+            continue
+
+        if current_section == "script":
+            script += line + "\n"
+        elif current_section == "title":
+            if line.strip():
+                title = line.strip()
+                current_section = None
+        elif current_section == "description":
+            description += line + "\n"
+
+    script = script.strip() if script else raw
+    description = description.strip()
+
+    # Append hashtags based on keywords
+    if keywords.strip():
+        hashtags = _format_hashtags(keywords)
+        if hashtags:
+            description = (description + "\n" + hashtags).strip()
+
+    progress(1.0, desc="Content ready")
+
+    # Return script, keywords, title, description
+    return script, keywords, title, description
+
+
 def generate_video(
     script_text: str,
     stock_keywords: str,
@@ -738,6 +894,26 @@ with gr.Blocks(
     with gr.Row():
         with gr.Column(scale=1):
             # Input section
+            with gr.Accordion("✨ Generate Script from Topic", open=True):
+                topic_dropdown = gr.Dropdown(
+                    label="Topic Preset",
+                    choices=[p["label"] for p in TOPIC_PRESETS],
+                    value=TOPIC_PRESETS[0]["label"],
+                )
+                topic_input = gr.Textbox(
+                    label="Topic",
+                    placeholder="Describe the idea in 1-2 sentences",
+                    value=TOPIC_PRESETS[0]["topic"],
+                    lines=2,
+                )
+                topic_keywords = gr.Textbox(
+                    label="Keywords",
+                    placeholder="comma-separated keywords",
+                    value=TOPIC_PRESETS[0]["keywords"],
+                    lines=1,
+                )
+                generate_script_btn = gr.Button("⚡ Generate Script + Title + Description", size="sm")
+
             script_input = gr.Textbox(
                 label=" Video Script",
                 placeholder="""Hook (02s):
@@ -1015,6 +1191,20 @@ Your call to action.""",
         outputs=voice_preview,
     )
 
+    # Topic preset change
+    topic_dropdown.change(
+        fn=update_topic_fields,
+        inputs=[topic_dropdown],
+        outputs=[topic_input, topic_keywords],
+    )
+
+    # Generate script from topic
+    generate_script_btn.click(
+        fn=generate_script_from_topic,
+        inputs=[topic_input, topic_keywords, language],
+        outputs=[script_input, stock_keywords, yt_title, yt_description],
+    )
+
     # YouTube auth button
     yt_auth_btn.click(
         fn=youtube_authenticate,
@@ -1047,4 +1237,4 @@ if __name__ == "__main__":
         share=False,
     )
 
-# v2.4 - Added YouTube publishing with OAuth, auto-translate title/description
+# v2.5 - Added topic-based script generation (Groq) with title/description
