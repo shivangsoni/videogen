@@ -1148,102 +1148,105 @@ Your call to action.""",
                     info="Comma-separated keywords for Pexels stock videos",
                 )
 
-            with gr.Row():
-                language = gr.Dropdown(
-                    label=" Language",
-                    choices=[
-                        "English",
-                        "Hindi",
-                        "Kannada",
-                        "Tamil",
-                        "Telugu",
-                        "Marathi",
-                        "Bengali",
-                        "Gujarati",
-                        "French",
-                        "German",
-                        "Spanish",
-                        "Portuguese",
-                        "Italian",
-                        "Dutch",
-                        "Japanese",
-                        "Korean",
-                        "Chinese",
-                        "Arabic",
-                        "Russian",
-                        "Turkish",
-                        "Polish",
-                        "Swedish",
-                        "Norwegian",
-                        "Danish",
-                    ],
-                    value="English",
-                    info="Script auto-translates to selected language",
+            with gr.Accordion("🎙️ Voice & Language Settings", open=False):
+                with gr.Row():
+                    language = gr.Dropdown(
+                        label=" Language",
+                        choices=[
+                            "English",
+                            "Hindi",
+                            "Kannada",
+                            "Tamil",
+                            "Telugu",
+                            "Marathi",
+                            "Bengali",
+                            "Gujarati",
+                            "French",
+                            "German",
+                            "Spanish",
+                            "Portuguese",
+                            "Italian",
+                            "Dutch",
+                            "Japanese",
+                            "Korean",
+                            "Chinese",
+                            "Arabic",
+                            "Russian",
+                            "Turkish",
+                            "Polish",
+                            "Swedish",
+                            "Norwegian",
+                            "Danish",
+                        ],
+                        value="English",
+                        info="Script auto-translates to selected language",
+                    )
+
+                    voice_type = gr.Dropdown(
+                        label=" Voice Type",
+                        choices=["Male", "Female"],
+                        value="Male",
+                        info="Select male or female voice",
+                    )
+
+                with gr.Row():
+                    voice_name = gr.Dropdown(
+                        label=" Voice",
+                        choices=get_voice_choices("English", "Male"),
+                        value="Christopher (US)",
+                        info="Select specific voice",
+                    )
+
+                    preview_btn = gr.Button(
+                        " Preview",
+                        size="sm",
+                        scale=0,
+                    )
+
+                # Audio preview output (hidden until played)
+                voice_preview = gr.Audio(
+                    label="Voice Preview",
+                    visible=True,
+                    autoplay=True,
                 )
 
-                voice_type = gr.Dropdown(
-                    label=" Voice Type",
-                    choices=["Male", "Female"],
-                    value="Male",
-                    info="Select male or female voice",
-                )
+            with gr.Accordion("🎬 Video Sources", open=False):
+                with gr.Row():
+                    use_anime_clips = gr.Checkbox(
+                        label="🎬 Use Anime Clips (Trace Moe API)",
+                        value=False,
+                        info="Uses anime clips instead of Pexels stock videos",
+                    )
+                    use_giphy_clips = gr.Checkbox(
+                        label="🎭 Use GIPHY (Animated GIFs)",
+                        value=False,
+                        info="Uses animated GIFs from GIPHY",
+                    )
+                    use_pixabay_clips = gr.Checkbox(
+                        label="🖼️ Use Pixabay (Free Videos)",
+                        value=False,
+                        info="Uses free stock videos from Pixabay",
+                    )
 
-            with gr.Row():
-                voice_name = gr.Dropdown(
-                    label=" Voice",
-                    choices=get_voice_choices("English", "Male"),
-                    value="Christopher (US)",
-                    info="Select specific voice",
-                )
+            with gr.Accordion("🎨 Custom Media", open=False):
+                with gr.Row():
+                    custom_gif = gr.File(
+                        label="Custom GIF/Video Background (optional)",
+                        file_types=[".gif", ".mp4", ".mov", ".webm"],
+                    )
 
-                preview_btn = gr.Button(
-                    " Preview",
-                    size="sm",
-                    scale=0,
-                )
-
-            # Audio preview output (hidden until played)
-            voice_preview = gr.Audio(
-                label="Voice Preview",
-                visible=True,
-                autoplay=True,
-            )
-
-            with gr.Row():
-                use_anime_clips = gr.Checkbox(
-                    label="🎬 Use Anime Clips (Trace Moe API)",
-                    value=False,
-                    info="Uses anime clips instead of Pexels stock videos",
-                )
-                use_giphy_clips = gr.Checkbox(
-                    label="🎭 Use GIPHY (Animated GIFs)",
-                    value=False,
-                    info="Uses animated GIFs from GIPHY",
-                )
-                use_pixabay_clips = gr.Checkbox(
-                    label="🖼️ Use Pixabay (Free Videos)",
-                    value=False,
-                    info="Uses free stock videos from Pixabay",
-                )
-
-            with gr.Row():
-                custom_gif = gr.File(
-                    label="Custom GIF/Video Background (optional)",
-                    file_types=[".gif", ".mp4", ".mov", ".webm"],
-                )
-
-            with gr.Row():
-                custom_soundtrack = gr.Audio(
-                    label="Custom Soundtrack (optional)",
-                    type="filepath",
-                )
-                soundtrack_volume = gr.Slider(
-                    label="Soundtrack Volume",
-                    minimum=0.0,
-                    maximum=1.0,
-                    value=0.2,
-                    step=0.05,
-                )
+                with gr.Row():
+                    custom_soundtrack = gr.Audio(
+                        label="Custom Soundtrack (optional)",
+                        type="filepath",
+                    )
+                    soundtrack_volume = gr.Slider(
+                        label="Soundtrack Volume",
+                        minimum=0.0,
+                        maximum=1.0,
+                        value=0.2,
+                        step=0.05,
+                    )
 
             with gr.Row():
                 generate_btn = gr.Button(
