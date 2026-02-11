@@ -659,16 +659,18 @@ def _decode_base64_image(data_url: str):
     import io
     from PIL import Image
 
-    if not data_url:
+    if not data_url or not data_url.strip():
         return None
 
+    # Handle data URL format
     if "," in data_url:
         data_url = data_url.split(",", 1)[1]
 
     try:
         raw = base64.b64decode(data_url)
         return Image.open(io.BytesIO(raw)).convert("RGB")
-    except Exception:
+    except Exception as e:
+        print(f"[_decode_base64_image] Error: {e}")
         return None
 
 
@@ -836,9 +838,15 @@ def generate_script_from_base64(
     progress=gr.Progress()
 ):
     """Generate script from base64 image string"""
+    print(f"[generate_script_from_base64] Received image_b64 length: {len(image_b64) if image_b64 else 0}")
+    
+    if not image_b64 or not image_b64.strip():
+        raise gr.Error("No image data received from camera")
+    
     image = _decode_base64_image(image_b64)
     if image is None:
-        raise gr.Error("Could not read captured image")
+        raise gr.Error("Could not decode image. Please try uploading the image instead.")
+    
     return generate_script_from_image(image, language, progress=progress)
 
 
