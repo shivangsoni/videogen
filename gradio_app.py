@@ -1091,9 +1091,8 @@ with gr.Blocks(
                     type="pil",
                 )
                 generate_image_script_btn = gr.Button("🔍 Generate from Image", size="sm")
-
-                                gr.Markdown("**Back camera (mobile):** use the button below to capture from rear camera.")
-                                backcam_html = gr.HTML(
+                gr.Markdown("**Back camera (mobile):** use the button below to capture from rear camera.")
+                backcam_html = gr.HTML(
                                         """
                                         <div style='display:flex; gap:8px; align-items:center;'>
                                             <input id="backcam_input" type="file" accept="image/*" capture="environment" />
@@ -1122,9 +1121,9 @@ with gr.Blocks(
                                         })();
                                         </script>
                                         """
-                                )
-                                backcam_b64 = gr.Textbox(visible=False, elem_id="backcam_b64")
-                                backcam_generate_btn = gr.Button("📷 Generate from Back Camera", size="sm")
+                )
+                backcam_b64 = gr.Textbox(visible=False, elem_id="backcam_b64")
+                backcam_generate_btn = gr.Button("📷 Generate from Back Camera", size="sm")
 
             script_input = gr.Textbox(
                 label=" Video Script",
