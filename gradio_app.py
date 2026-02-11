@@ -1255,31 +1255,6 @@ Your call to action.""",
                 elem_classes=["output-video"],
             )
 
-            gr.Markdown(
-                """
-                ###  How to Use
-                1. Write your script following the format:
-                   - **Hook**: Attention-grabbing opener (0-2 seconds)
-                   - **Core**: Main content (break into short lines)
-                   - **End**: Call to action
-                2. Add keywords for stock video backgrounds
-                3. Choose a voice style
-                4. Click Generate and wait 2-3 minutes
-
-                ###  Tips
-                - Keep lines short (3-7 words each)
-                - Use powerful, emotional words
-                - Match keywords to your content mood
-                
-                ###  To Cancel
-                - Click **Cancel** or simply **refresh the page**
-                
-                ###  Progress
-                - Real-time encoding progress shown during video rendering
-                - Watch the progress bar for frame-by-frame status
-                """
-            )
-
             # YouTube Publishing Section
             gr.Markdown("---")
             gr.Markdown("### 📤 Publish to YouTube")
