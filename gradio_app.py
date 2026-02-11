@@ -765,71 +765,9 @@ def generate_script_from_image(
     if not image_b64:
         raise gr.Error("Could not read image")
 
-    prompt = """Create a YouTube Shorts script based on the image.
-Follow this EXACT format:
-
-SCRIPT:
-Hook (0-2s):
-[One powerful opening line that stops scrolling]
-
-Core:
-[4-7 short punchy lines, each on its own line]
-[Use line breaks between thoughts]
-[Keep each line under 10 words]
-
-End (CTA):
-[Call to action - save/follow/share]
-
-TITLE:
-[Catchy YouTube title under 60 chars, use emotion words]
-
-DESCRIPTION:
-[3-4 lines with emojis, include the hook and CTA]
-
-KEYWORDS:
-[Comma-separated keywords derived from the image]
-
-Return ONLY the content in this format, no explanations."""
-
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    data = {
-        "model": "llama-3.2-11b-vision-preview",
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a viral YouTube Shorts script writer. Create punchy, impactful content that hooks viewers in 2 seconds and delivers value in under 60 seconds. Use short sentences. Be direct. No fluff."
-            },
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": image_b64}}
-                ]
-            }
-        ],
-        "temperature": 0.8,
-        "max_tokens": 1000
-    }
-
-    progress(0.1, desc="Analyzing image with Groq...")
-    response = requests.post(GROQ_API_URL, headers=headers, json=data, timeout=60)
-    response.raise_for_status()
-    raw = response.json()["choices"][0]["message"]["content"].strip()
-
-    script, keywords, title, description = _parse_groq_response(raw)
-
-    if keywords:
-        hashtags = _format_hashtags(keywords)
-        if hashtags:
-            description = (description + "\n" + hashtags).strip()
-
-    progress(1.0, desc="Content ready")
-
-    return script, keywords, title, description
+    # NOTE: Groq Vision models have been deprecated as of Feb 2026
+    # This feature requires an alternative vision API (OpenAI GPT-4 Vision, Anthropic Claude 3, etc.)
+    raise gr.Error("Image-to-script feature is temporarily unavailable. Groq Vision API has been deprecated. Please use the text-based script generator instead.")
 
 
 def generate_script_from_base64(
