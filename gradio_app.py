@@ -1099,36 +1099,37 @@ with gr.Blocks(
                     type="pil",
                 )
                 generate_image_script_btn = gr.Button("🔍 Generate from Image", size="sm")
+
                 gr.Markdown("**Back camera (mobile):** use the button below to capture from rear camera.")
                 backcam_html = gr.HTML(
-                                        """
-                                        <div style='display:flex; gap:8px; align-items:center;'>
-                                            <input id="backcam_input" type="file" accept="image/*" capture="environment" />
-                                            <button id="backcam_btn" type="button">Use Back Camera</button>
-                                        </div>
-                                        <script>
-                                        (function(){
-                                            const input = document.getElementById('backcam_input');
-                                            const btn = document.getElementById('backcam_btn');
-                                            if (!input || !btn) return;
-                                            btn.onclick = () => input.click();
-                                            input.onchange = async () => {
-                                                const file = input.files && input.files[0];
-                                                if (!file) return;
-                                                const reader = new FileReader();
-                                                reader.onload = () => {
-                                                    const dataUrl = reader.result;
-                                                    const textbox = document.querySelector('#backcam_b64 textarea');
-                                                    if (textbox) {
-                                                        textbox.value = dataUrl;
-                                                        textbox.dispatchEvent(new Event('input', { bubbles: true }));
-                                                    }
-                                                };
-                                                reader.readAsDataURL(file);
-                                            };
-                                        })();
-                                        </script>
-                                        """
+                    """
+                    <div style='display:flex; gap:8px; align-items:center;'>
+                      <input id="backcam_input" type="file" accept="image/*" capture="environment" />
+                      <button id="backcam_btn" type="button">Use Back Camera</button>
+                    </div>
+                    <script>
+                    (function(){
+                      const input = document.getElementById('backcam_input');
+                      const btn = document.getElementById('backcam_btn');
+                      if (!input || !btn) return;
+                      btn.onclick = () => input.click();
+                      input.onchange = async () => {
+                        const file = input.files && input.files[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          const dataUrl = reader.result;
+                          const textbox = document.querySelector('#backcam_b64 textarea');
+                          if (textbox) {
+                            textbox.value = dataUrl;
+                            textbox.dispatchEvent(new Event('input', { bubbles: true }));
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      };
+                    })();
+                    </script>
+                    """
                 )
                 backcam_b64 = gr.Textbox(visible=False, elem_id="backcam_b64")
                 backcam_generate_btn = gr.Button("📷 Generate from Back Camera", size="sm")
