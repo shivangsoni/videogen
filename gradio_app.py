@@ -654,6 +654,24 @@ def _encode_image_to_base64(image) -> str:
     return f"data:image/png;base64,{b64}"
 
 
+def _decode_base64_image(data_url: str):
+    """Decode a base64 data URL into a PIL image"""
+    import io
+    from PIL import Image
+
+    if not data_url:
+        return None
+
+    if "," in data_url:
+        data_url = data_url.split(",", 1)[1]
+
+    try:
+        raw = base64.b64decode(data_url)
+        return Image.open(io.BytesIO(raw)).convert("RGB")
+    except Exception:
+        return None
+
+
 def generate_script_from_topic(
     topic: str,
     keywords: str,
@@ -810,6 +828,18 @@ Return ONLY the content in this format, no explanations."""
     progress(1.0, desc="Content ready")
 
     return script, keywords, title, description
+
+
+def generate_script_from_base64(
+    image_b64: str,
+    language: str,
+    progress=gr.Progress()
+):
+    """Generate script from base64 image string"""
+    image = _decode_base64_image(image_b64)
+    if image is None:
+        raise gr.Error("Could not read captured image")
+    return generate_script_from_image(image, language, progress=progress)
 
 
 def generate_video(
@@ -1061,6 +1091,40 @@ with gr.Blocks(
                     type="pil",
                 )
                 generate_image_script_btn = gr.Button("🔍 Generate from Image", size="sm")
+
+                                gr.Markdown("**Back camera (mobile):** use the button below to capture from rear camera.")
+                                backcam_html = gr.HTML(
+                                        """
+                                        <div style='display:flex; gap:8px; align-items:center;'>
+                                            <input id="backcam_input" type="file" accept="image/*" capture="environment" />
+                                            <button id="backcam_btn" type="button">Use Back Camera</button>
+                                        </div>
+                                        <script>
+                                        (function(){
+                                            const input = document.getElementById('backcam_input');
+                                            const btn = document.getElementById('backcam_btn');
+                                            if (!input || !btn) return;
+                                            btn.onclick = () => input.click();
+                                            input.onchange = async () => {
+                                                const file = input.files && input.files[0];
+                                                if (!file) return;
+                                                const reader = new FileReader();
+                                                reader.onload = () => {
+                                                    const dataUrl = reader.result;
+                                                    const textbox = document.querySelector('#backcam_b64 textarea');
+                                                    if (textbox) {
+                                                        textbox.value = dataUrl;
+                                                        textbox.dispatchEvent(new Event('input', { bubbles: true }));
+                                                    }
+                                                };
+                                                reader.readAsDataURL(file);
+                                            };
+                                        })();
+                                        </script>
+                                        """
+                                )
+                                backcam_b64 = gr.Textbox(visible=False, elem_id="backcam_b64")
+                                backcam_generate_btn = gr.Button("📷 Generate from Back Camera", size="sm")
 
             script_input = gr.Textbox(
                 label=" Video Script",
@@ -1387,6 +1451,12 @@ Your call to action.""",
     generate_image_script_btn.click(
         fn=generate_script_from_image,
         inputs=[image_input, language],
+        outputs=[script_input, stock_keywords, yt_title, yt_description],
+    )
+
+    backcam_generate_btn.click(
+        fn=generate_script_from_base64,
+        inputs=[backcam_b64, language],
         outputs=[script_input, stock_keywords, yt_title, yt_description],
     )
 
