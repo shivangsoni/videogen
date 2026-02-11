@@ -1101,38 +1101,62 @@ with gr.Blocks(
                 generate_image_script_btn = gr.Button("🔍 Generate from Image", size="sm")
 
                 gr.Markdown("**Back camera (mobile):** use the button below to capture from rear camera.")
+                backcam_b64 = gr.Textbox(visible=False, elem_id="backcam_b64")
                 backcam_html = gr.HTML(
                     """
                     <div style='display:flex; gap:8px; align-items:center;'>
-                      <input id="backcam_input" type="file" accept="image/*" capture="environment" />
-                      <button id="backcam_btn" type="button">Use Back Camera</button>
+                      <input id="backcam_input" type="file" accept="image/*" capture="environment" style="display:none;" />
+                      <button id="backcam_btn" type="button" style="padding:8px 16px; background:#4F46E5; color:white; border:none; border-radius:6px; cursor:pointer;">📷 Capture from Back Camera</button>
                     </div>
                     <script>
-                    (function(){
+                    setTimeout(() => {
                       const input = document.getElementById('backcam_input');
                       const btn = document.getElementById('backcam_btn');
-                      if (!input || !btn) return;
-                      btn.onclick = () => input.click();
+                      if (!input || !btn) {
+                        console.log('Back camera elements not found');
+                        return;
+                      }
+                      btn.onclick = () => {
+                        console.log('Back camera button clicked');
+                        input.click();
+                      };
                       input.onchange = async () => {
                         const file = input.files && input.files[0];
+                        console.log('File selected:', file ? file.name : 'none');
                         if (!file) return;
+                        
                         const reader = new FileReader();
                         reader.onload = () => {
                           const dataUrl = reader.result;
-                          const textbox = document.querySelector('#backcam_b64 textarea');
+                          console.log('Image loaded, length:', dataUrl.length);
+                          
+                          // Try multiple selectors to find the textbox
+                          let textbox = document.querySelector('#backcam_b64 textarea');
+                          if (!textbox) textbox = document.querySelector('[data-testid="textbox"] textarea');
+                          if (!textbox) textbox = document.querySelector('textarea[placeholder=""]');
+                          
                           if (textbox) {
+                            console.log('Textbox found, setting value');
                             textbox.value = dataUrl;
                             textbox.dispatchEvent(new Event('input', { bubbles: true }));
+                            textbox.dispatchEvent(new Event('change', { bubbles: true }));
+                            alert('Image captured! Click "Generate from Back Camera" button below.');
+                          } else {
+                            console.error('Textbox not found');
+                            alert('Error: Could not find textbox. Please use upload instead.');
                           }
+                        };
+                        reader.onerror = (e) => {
+                          console.error('FileReader error:', e);
+                          alert('Error reading image file');
                         };
                         reader.readAsDataURL(file);
                       };
-                    })();
+                    }, 1000);
                     </script>
                     """
                 )
-                backcam_b64 = gr.Textbox(visible=False, elem_id="backcam_b64")
-                backcam_generate_btn = gr.Button("📷 Generate from Back Camera", size="sm")
+                backcam_generate_btn = gr.Button("🔍 Generate from Back Camera", size="sm")
 
             script_input = gr.Textbox(
                 label=" Video Script",
