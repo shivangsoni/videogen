@@ -336,12 +336,15 @@ class VideoGenerator:
                 report_progress(0.35, "Using custom GIF/video background...")
                 clip = VideoFileClip(custom_gif_path)
                 clip = self.resize_video_to_fullscreen(clip)
-                clip = clip.fx(vfx.colorx, 0.7)
-                # Loop or trim to match audio duration
+                # Don't darken custom media - user wants it as-is
+                # clip = clip.fx(vfx.colorx, 0.7)
+                # Loop to match audio duration without cutting off
                 if clip.duration < audio_duration:
-                    clip = clip.fx(vfx.loop, duration=audio_duration)
-                if clip.duration > audio_duration:
-                    clip = clip.subclip(0, audio_duration)
+                    # Calculate how many times to loop
+                    loops_needed = int(audio_duration / clip.duration) + 1
+                    clip = clip.fx(vfx.loop, n=loops_needed)
+                # Trim to exact audio duration
+                clip = clip.subclip(0, min(clip.duration, audio_duration))
                 background_clips.append(clip)
                 report_progress(0.45, "Custom background ready")
             except Exception as e:
