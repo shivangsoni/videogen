@@ -1256,9 +1256,6 @@ Your call to action.""",
             video_output = gr.Video(
                 label=" Generated Video",
                 elem_classes=["output-video"],
-                show_download_button=True,
-                show_share_button=True,
-                interactive=True,
             )
 
             # YouTube Publishing Section
