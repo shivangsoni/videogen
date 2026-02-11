@@ -1,5 +1,5 @@
 """
-Test Groq Vision API with image-to-text extraction
+Test Google Gemini Vision API with image-to-text extraction
 """
 
 import os
@@ -11,9 +11,9 @@ from PIL import Image, ImageDraw, ImageFont
 import io
 
 # Load API key
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-if not GROQ_API_KEY:
-    print("ERROR: GROQ_API_KEY not set")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    print("ERROR: GEMINI_API_KEY not set")
     exit(1)
 
 # Create a test image with the script text
@@ -68,7 +68,13 @@ else:
     print("Creating test image with script text...")
     image_b64 = create_test_image()
 
-# Prepare Groq request
+# Remove data URL prefix
+if "," in image_b64:
+    image_b64_clean = image_b64.split(",", 1)[1]
+else:
+    image_b64_clean = image_b64
+
+# Prepare Gemini request
 prompt = """Create a YouTube Shorts script based on the image.
 Follow this EXACT format:
 
@@ -95,36 +101,36 @@ KEYWORDS:
 
 Return ONLY the content in this format, no explanations."""
 
+url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+
 headers = {
-    "Authorization": f"Bearer {GROQ_API_KEY}",
     "Content-Type": "application/json"
 }
 
 data = {
-    "model": "llama-3.2-11b-text-preview",
-    "messages": [
-        {
-            "role": "system",
-            "content": "You are a viral YouTube Shorts script writer. Create punchy, impactful content that hooks viewers in 2 seconds and delivers value in under 60 seconds. Use short sentences. Be direct. No fluff."
-        },
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": image_b64}}
-            ]
-        }
-    ],
-    "temperature": 0.8,
-    "max_tokens": 1000
+    "contents": [{
+        "parts": [
+            {"text": prompt},
+            {
+                "inline_data": {
+                    "mime_type": "image/png",
+                    "data": image_b64_clean
+                }
+            }
+        ]
+    }],
+    "generationConfig": {
+        "temperature": 0.8,
+        "maxOutputTokens": 1000
+    }
 }
 
-print("Sending request to Groq Vision API...")
+print("Sending request to Google Gemini Vision API...")
 print(f"Image size: {len(image_b64)} bytes")
 
 try:
     response = requests.post(
-        "https://api.groq.com/openai/v1/chat/completions",
+        url,
         headers=headers,
         json=data,
         timeout=60
@@ -132,14 +138,14 @@ try:
     response.raise_for_status()
     
     result = response.json()
-    content = result["choices"][0]["message"]["content"]
+    content = result["candidates"][0]["content"]["parts"][0]["text"]
     
     print("\n" + "="*80)
-    print("GROQ VISION API RESPONSE:")
+    print("GOOGLE GEMINI VISION API RESPONSE:")
     print("="*80)
     print(content)
     print("="*80)
-    print("\nSUCCESS! Groq Vision API can read the image and extract script content.")
+    print("\nSUCCESS! Google Gemini Vision API can read the image and extract script content.")
     
 except Exception as e:
     print(f"\nERROR: {e}")
