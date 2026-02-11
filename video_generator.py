@@ -35,12 +35,14 @@ if not hasattr(Image, 'ANTIALIAS'):
 
 from moviepy.editor import (
     AudioFileClip,
+    CompositeAudioClip,
     CompositeVideoClip,
     ImageClip,
     VideoFileClip,
     concatenate_videoclips,
     vfx,
 )
+from moviepy.audio.fx.all import audio_loop
 
 from config import (
     VIDEO_WIDTH, VIDEO_HEIGHT, FPS,
@@ -261,6 +263,9 @@ class VideoGenerator:
         use_anime_clips: bool = False,
         use_giphy_clips: bool = False,
         use_pixabay_clips: bool = False,
+        custom_gif_path: Optional[str] = None,
+        custom_soundtrack_path: Optional[str] = None,
+        soundtrack_volume: float = 0.2,
     ) -> str:
         """
         Generate video with stock videos/animations and full-screen captions.
@@ -324,9 +329,26 @@ class VideoGenerator:
         # Step 4: Get background videos/animations (30% -> 55%)
         report_progress(0.32, "Fetching background videos...")
         background_clips = []
+
+        # Use custom GIF/video if provided
+        if custom_gif_path and os.path.exists(custom_gif_path):
+            try:
+                report_progress(0.35, "Using custom GIF/video background...")
+                clip = VideoFileClip(custom_gif_path)
+                clip = self.resize_video_to_fullscreen(clip)
+                clip = clip.fx(vfx.colorx, 0.7)
+                # Loop or trim to match audio duration
+                if clip.duration < audio_duration:
+                    clip = clip.fx(vfx.loop, duration=audio_duration)
+                if clip.duration > audio_duration:
+                    clip = clip.subclip(0, audio_duration)
+                background_clips.append(clip)
+                report_progress(0.45, "Custom background ready")
+            except Exception as e:
+                print(f"      Error loading custom GIF/video: {e}")
         
         # Try anime clips if requested
-        if use_anime_clips:
+        if not background_clips and use_anime_clips:
             # Use stock_keywords for anime search if provided
             anime_keywords = stock_keywords[:3] if stock_keywords else None
             if anime_keywords:
@@ -348,7 +370,7 @@ class VideoGenerator:
                         print(f"      Error loading anime clip: {e}")
         
         # Try GIPHY animated GIFs
-        elif use_giphy_clips:
+        elif not background_clips and use_giphy_clips:
             giphy_keywords = stock_keywords[:3] if stock_keywords else None
             if giphy_keywords:
                 report_progress(0.35, f"Fetching GIPHY GIFs for: {', '.join(giphy_keywords)}...")
@@ -373,7 +395,7 @@ class VideoGenerator:
                         print(f"      Error loading GIPHY clip: {e}")
         
         # Try Pixabay free videos
-        elif use_pixabay_clips:
+        elif not background_clips and use_pixabay_clips:
             pixabay_keywords = stock_keywords[:3] if stock_keywords else None
             if pixabay_keywords:
                 report_progress(0.35, f"Fetching Pixabay videos for: {', '.join(pixabay_keywords)}...")
@@ -399,7 +421,7 @@ class VideoGenerator:
                         print(f"      Error loading Pixabay clip: {e}")
         
         # Try to fetch stock videos if not using anime/sketch or they failed
-        elif use_stock_videos and self.stock_fetcher.api_key:
+        elif not background_clips and use_stock_videos and self.stock_fetcher.api_key:
             report_progress(0.35, "Searching Pexels for stock videos...")
             # Use custom keywords if provided, otherwise extract from script
             if stock_keywords:
@@ -507,7 +529,25 @@ class VideoGenerator:
         
         # Add audio
         audio = AudioFileClip(audio_path)
-        final_video = final_video.set_audio(audio)
+        final_audio = audio
+
+        # Optional custom soundtrack
+        bg_audio = None
+        if custom_soundtrack_path and os.path.exists(custom_soundtrack_path):
+            try:
+                bg_audio = AudioFileClip(custom_soundtrack_path)
+                if bg_audio.duration < audio_duration:
+                    bg_audio = audio_loop(bg_audio, duration=audio_duration)
+                else:
+                    bg_audio = bg_audio.subclip(0, audio_duration)
+                # Clamp volume to [0, 1]
+                volume = max(0.0, min(soundtrack_volume, 1.0))
+                bg_audio = bg_audio.volumex(volume)
+                final_audio = CompositeAudioClip([audio, bg_audio])
+            except Exception as e:
+                print(f"      Error loading custom soundtrack: {e}")
+
+        final_video = final_video.set_audio(final_audio)
         final_video = final_video.set_duration(audio_duration)
         report_progress(0.75, "Video composed with audio")
         
@@ -651,6 +691,11 @@ class VideoGenerator:
             pass
         try:
             audio.close()
+        except:
+            pass
+        try:
+            if bg_audio:
+                bg_audio.close()
         except:
             pass
         for clip in background_clips:

@@ -594,6 +594,66 @@ def _format_hashtags(keywords: str) -> str:
     return " ".join(tags)
 
 
+def _parse_groq_response(raw: str) -> tuple:
+    """Parse Groq response for SCRIPT/TITLE/DESCRIPTION/KEYWORDS"""
+    script = ""
+    title = ""
+    description = ""
+    keywords = ""
+    current_section = None
+
+    for line in raw.split("\n"):
+        line_lower = line.lower().strip()
+        if line_lower.startswith("script:"):
+            current_section = "script"
+            continue
+        elif line_lower.startswith("title:"):
+            current_section = "title"
+            continue
+        elif line_lower.startswith("description:"):
+            current_section = "description"
+            continue
+        elif line_lower.startswith("keywords:"):
+            current_section = "keywords"
+            continue
+
+        if current_section == "script":
+            script += line + "\n"
+        elif current_section == "title":
+            if line.strip():
+                title = line.strip()
+                current_section = None
+        elif current_section == "description":
+            description += line + "\n"
+        elif current_section == "keywords":
+            if line.strip():
+                keywords += line.strip() + " "
+
+    script = script.strip() if script else raw
+    description = description.strip()
+    keywords = keywords.strip().replace(";", ",")
+
+    return script, keywords, title, description
+
+
+def _encode_image_to_base64(image) -> str:
+    """Encode PIL/numpy image to base64 data URL"""
+    import io
+    from PIL import Image
+    import numpy as np
+
+    if image is None:
+        return ""
+
+    if isinstance(image, np.ndarray):
+        image = Image.fromarray(image)
+
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+    return f"data:image/png;base64,{b64}"
+
+
 def generate_script_from_topic(
     topic: str,
     keywords: str,
@@ -655,45 +715,100 @@ Return ONLY the content in this format, no explanations."""
 
     raw = response.json()["choices"][0]["message"]["content"].strip()
 
-    # Parse response
-    script = ""
-    title = ""
-    description = ""
-    current_section = None
-
-    for line in raw.split("\n"):
-        line_lower = line.lower().strip()
-        if line_lower.startswith("script:"):
-            current_section = "script"
-            continue
-        elif line_lower.startswith("title:"):
-            current_section = "title"
-            continue
-        elif line_lower.startswith("description:"):
-            current_section = "description"
-            continue
-
-        if current_section == "script":
-            script += line + "\n"
-        elif current_section == "title":
-            if line.strip():
-                title = line.strip()
-                current_section = None
-        elif current_section == "description":
-            description += line + "\n"
-
-    script = script.strip() if script else raw
-    description = description.strip()
+    script, parsed_keywords, title, description = _parse_groq_response(raw)
 
     # Append hashtags based on keywords
-    if keywords.strip():
-        hashtags = _format_hashtags(keywords)
+    keywords_out = keywords.strip() or parsed_keywords.strip()
+    if keywords_out:
+        hashtags = _format_hashtags(keywords_out)
         if hashtags:
             description = (description + "\n" + hashtags).strip()
 
     progress(1.0, desc="Content ready")
 
     # Return script, keywords, title, description
+    return script, keywords_out, title, description
+
+
+def generate_script_from_image(
+    image,
+    language: str,
+    progress=gr.Progress()
+):
+    """Generate script + keywords + title + description from an image using Groq Vision"""
+    if image is None:
+        raise gr.Error("Please upload or capture an image")
+    if not GROQ_API_KEY:
+        raise gr.Error("GROQ_API_KEY not set. Add it to Space secrets.")
+
+    image_b64 = _encode_image_to_base64(image)
+    if not image_b64:
+        raise gr.Error("Could not read image")
+
+    prompt = """Create a YouTube Shorts script based on the image.
+Follow this EXACT format:
+
+SCRIPT:
+Hook (0-2s):
+[One powerful opening line that stops scrolling]
+
+Core:
+[4-7 short punchy lines, each on its own line]
+[Use line breaks between thoughts]
+[Keep each line under 10 words]
+
+End (CTA):
+[Call to action - save/follow/share]
+
+TITLE:
+[Catchy YouTube title under 60 chars, use emotion words]
+
+DESCRIPTION:
+[3-4 lines with emojis, include the hook and CTA]
+
+KEYWORDS:
+[Comma-separated keywords derived from the image]
+
+Return ONLY the content in this format, no explanations."""
+
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": "llama-3.2-11b-vision-preview",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a viral YouTube Shorts script writer. Create punchy, impactful content that hooks viewers in 2 seconds and delivers value in under 60 seconds. Use short sentences. Be direct. No fluff."
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": image_b64}}
+                ]
+            }
+        ],
+        "temperature": 0.8,
+        "max_tokens": 1000
+    }
+
+    progress(0.1, desc="Analyzing image with Groq...")
+    response = requests.post(GROQ_API_URL, headers=headers, json=data, timeout=60)
+    response.raise_for_status()
+    raw = response.json()["choices"][0]["message"]["content"].strip()
+
+    script, keywords, title, description = _parse_groq_response(raw)
+
+    if keywords:
+        hashtags = _format_hashtags(keywords)
+        if hashtags:
+            description = (description + "\n" + hashtags).strip()
+
+    progress(1.0, desc="Content ready")
+
     return script, keywords, title, description
 
 
@@ -706,6 +821,9 @@ def generate_video(
     use_anime_clips: bool,
     use_giphy_clips: bool,
     use_pixabay_clips: bool,
+    custom_gif,
+    custom_soundtrack,
+    soundtrack_volume: float,
     progress=gr.Progress()
 ) -> str:
     """Generate a YouTube Shorts video from script text."""
@@ -716,8 +834,14 @@ def generate_video(
     if not script_text.strip():
         raise gr.Error("Please enter a script!")
 
-    if not PEXELS_API_KEY and not use_anime_clips and not use_giphy_clips and not use_pixabay_clips:
-        raise gr.Error("Pexels API key not configured. Please add PEXELS_API_KEY to Space secrets or use anime/GIPHY/Pixabay clips.")
+    if (
+        not PEXELS_API_KEY
+        and not use_anime_clips
+        and not use_giphy_clips
+        and not use_pixabay_clips
+        and not custom_gif
+    ):
+        raise gr.Error("Pexels API key not configured. Please add PEXELS_API_KEY to Space secrets or use anime/GIPHY/Pixabay/custom GIF clips.")
 
     # Check if GIPHY is requested but API key is missing
     if use_giphy_clips and not GIPHY_API_KEY:
@@ -774,6 +898,19 @@ def generate_video(
         if is_cancelled():
             raise gr.Error("Generation cancelled")
             
+        # Resolve file paths from Gradio components
+        custom_gif_path = None
+        if custom_gif and isinstance(custom_gif, str):
+            custom_gif_path = custom_gif
+        elif custom_gif and hasattr(custom_gif, "name"):
+            custom_gif_path = custom_gif.name
+
+        custom_soundtrack_path = None
+        if custom_soundtrack and isinstance(custom_soundtrack, str):
+            custom_soundtrack_path = custom_soundtrack
+        elif custom_soundtrack and hasattr(custom_soundtrack, "name"):
+            custom_soundtrack_path = custom_soundtrack.name
+
         # Generate video with real-time progress updates
         result_path = generator.generate_video(
             segments=segments,
@@ -784,6 +921,9 @@ def generate_video(
             use_anime_clips=use_anime_clips,
             use_giphy_clips=use_giphy_clips,
             use_pixabay_clips=use_pixabay_clips,
+            custom_gif_path=custom_gif_path,
+            custom_soundtrack_path=custom_soundtrack_path,
+            soundtrack_volume=soundtrack_volume,
         )
 
         progress(1.0, desc=" Complete! Video ready.")
@@ -914,6 +1054,14 @@ with gr.Blocks(
                 )
                 generate_script_btn = gr.Button("⚡ Generate Script + Title + Description", size="sm")
 
+            with gr.Accordion("🖼️ Generate Script from Image", open=False):
+                image_input = gr.Image(
+                    label="Upload or Capture Image",
+                    sources=["upload", "webcam"],
+                    type="pil",
+                )
+                generate_image_script_btn = gr.Button("🔍 Generate from Image", size="sm")
+
             script_input = gr.Textbox(
                 label=" Video Script",
                 placeholder="""Hook (02s):
@@ -1013,6 +1161,25 @@ Your call to action.""",
                     label="🖼️ Use Pixabay (Free Videos)",
                     value=False,
                     info="Uses free stock videos from Pixabay",
+                )
+
+            with gr.Row():
+                custom_gif = gr.File(
+                    label="Custom GIF/Video Background (optional)",
+                    file_types=[".gif", ".mp4", ".mov", ".webm"],
+                )
+
+            with gr.Row():
+                custom_soundtrack = gr.Audio(
+                    label="Custom Soundtrack (optional)",
+                    type="filepath",
+                )
+                soundtrack_volume = gr.Slider(
+                    label="Soundtrack Volume",
+                    minimum=0.0,
+                    maximum=1.0,
+                    value=0.2,
+                    step=0.05,
                 )
 
             with gr.Row():
@@ -1160,7 +1327,19 @@ Your call to action.""",
     # Connect the generate button
     generate_btn.click(
         fn=generate_video,
-        inputs=[script_input, stock_keywords, language, voice_type, voice_name, use_anime_clips, use_giphy_clips, use_pixabay_clips],
+        inputs=[
+            script_input,
+            stock_keywords,
+            language,
+            voice_type,
+            voice_name,
+            use_anime_clips,
+            use_giphy_clips,
+            use_pixabay_clips,
+            custom_gif,
+            custom_soundtrack,
+            soundtrack_volume,
+        ],
         outputs=video_output,
     )
 
@@ -1202,6 +1381,12 @@ Your call to action.""",
     generate_script_btn.click(
         fn=generate_script_from_topic,
         inputs=[topic_input, topic_keywords, language],
+        outputs=[script_input, stock_keywords, yt_title, yt_description],
+    )
+
+    generate_image_script_btn.click(
+        fn=generate_script_from_image,
+        inputs=[image_input, language],
         outputs=[script_input, stock_keywords, yt_title, yt_description],
     )
 

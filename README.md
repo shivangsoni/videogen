@@ -360,12 +360,15 @@ python batch_video_generator.py --folder "My Video" --giphy --english-only
 The project includes a Gradio web interface with:
 
 - 📝 Script editor with examples
+- 🖼️ Image-to-script generation (upload or webcam)
 - 🎤 Voice selection (Male/Female per language)
 - 🎬 Video source selection:
   - ✅ Pexels (default)
   - ✅ GIPHY (Animated GIFs)
   - ✅ Pixabay (Free Videos)
   - ✅ Anime Clips (Trace Moe)
+- 🎞️ Custom GIF/video background upload
+- 🎵 Custom soundtrack upload with volume control
 - 🔊 Voice preview
 - ⏹️ Cancel button
 
