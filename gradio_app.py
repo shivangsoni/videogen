@@ -949,11 +949,18 @@ def generate_video(
             raise gr.Error("Generation cancelled")
             
         # Resolve file paths from Gradio components
-        custom_gif_path = None
-        if custom_gif and isinstance(custom_gif, str):
-            custom_gif_path = custom_gif
-        elif custom_gif and hasattr(custom_gif, "name"):
-            custom_gif_path = custom_gif.name
+        custom_gif_paths = []
+        if custom_gif:
+            if isinstance(custom_gif, list):
+                for gif in custom_gif:
+                    if isinstance(gif, str):
+                        custom_gif_paths.append(gif)
+                    elif hasattr(gif, "name"):
+                        custom_gif_paths.append(gif.name)
+            elif isinstance(custom_gif, str):
+                custom_gif_paths = [custom_gif]
+            elif hasattr(custom_gif, "name"):
+                custom_gif_paths = [custom_gif.name]
 
         custom_soundtrack_path = None
         if custom_soundtrack and isinstance(custom_soundtrack, str):
@@ -971,7 +978,7 @@ def generate_video(
             use_anime_clips=use_anime_clips,
             use_giphy_clips=use_giphy_clips,
             use_pixabay_clips=use_pixabay_clips,
-            custom_gif_path=custom_gif_path,
+            custom_gif_paths=custom_gif_paths,
             custom_soundtrack_path=custom_soundtrack_path,
             soundtrack_volume=soundtrack_volume,
         )
@@ -1220,8 +1227,9 @@ Your call to action.""",
             with gr.Accordion("🎨 Custom Media", open=False):
                 with gr.Row():
                     custom_gif = gr.File(
-                        label="Custom GIF/Video Background (optional)",
+                        label="Custom GIF/Video Backgrounds (optional) - Multiple files will show with equal duration",
                         file_types=[".gif", ".mp4", ".mov", ".webm"],
+                        file_count="multiple",
                     )
 
                 with gr.Row():

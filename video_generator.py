@@ -263,7 +263,7 @@ class VideoGenerator:
         use_anime_clips: bool = False,
         use_giphy_clips: bool = False,
         use_pixabay_clips: bool = False,
-        custom_gif_path: Optional[str] = None,
+        custom_gif_paths: Optional[List[str]] = None,
         custom_soundtrack_path: Optional[str] = None,
         soundtrack_volume: float = 0.2,
     ) -> str:
@@ -278,6 +278,11 @@ class VideoGenerator:
             target_language: Language code for audio (captions stay in English)
             progress_callback: Optional callback function(progress, message) for progress updates
             use_anime_clips: Whether to use anime clips from Trace Moe instead of Pexels
+            use_giphy_clips: Whether to use GIPHY animated GIFs
+            use_pixabay_clips: Whether to use Pixabay stock videos
+            custom_gif_paths: List of custom GIF/video file paths (will be split equally across duration)
+            custom_soundtrack_path: Path to custom soundtrack audio file
+            soundtrack_volume: Volume for custom soundtrack (0.0 to 1.0)
             use_giphy_clips: Whether to use animated GIFs from GIPHY
             use_pixabay_clips: Whether to use free videos from Pixabay
         """
@@ -330,25 +335,36 @@ class VideoGenerator:
         report_progress(0.32, "Fetching background videos...")
         background_clips = []
 
-        # Use custom GIF/video if provided
-        if custom_gif_path and os.path.exists(custom_gif_path):
+        # Use custom GIF/video if provided (split duration equally)
+        if custom_gif_paths and len(custom_gif_paths) > 0:
             try:
-                report_progress(0.35, "Using custom GIF/video background...")
-                clip = VideoFileClip(custom_gif_path)
-                clip = self.resize_video_to_fullscreen(clip)
-                # Don't darken custom media - user wants it as-is
-                # clip = clip.fx(vfx.colorx, 0.7)
-                # Loop to match audio duration without cutting off
-                if clip.duration < audio_duration:
-                    # Calculate how many times to loop
-                    loops_needed = int(audio_duration / clip.duration) + 1
-                    clip = clip.fx(vfx.loop, n=loops_needed)
-                # Trim to exact audio duration
-                clip = clip.subclip(0, min(clip.duration, audio_duration))
-                background_clips.append(clip)
-                report_progress(0.45, "Custom background ready")
+                valid_gifs = [path for path in custom_gif_paths if os.path.exists(path)]
+                if valid_gifs:
+                    num_gifs = len(valid_gifs)
+                    duration_per_gif = audio_duration / num_gifs
+                    
+                    report_progress(0.35, f"Using {num_gifs} custom GIF/video backgrounds...")
+                    
+                    for i, gif_path in enumerate(valid_gifs):
+                        try:
+                            clip = VideoFileClip(gif_path)
+                            clip = self.resize_video_to_fullscreen(clip)
+                            
+                            # Loop to match allocated duration
+                            if clip.duration < duration_per_gif:
+                                loops_needed = int(duration_per_gif / clip.duration) + 1
+                                clip = clip.fx(vfx.loop, n=loops_needed)
+                            
+                            # Trim to exact allocated duration
+                            clip = clip.subclip(0, min(clip.duration, duration_per_gif))
+                            background_clips.append(clip)
+                        except Exception as e:
+                            print(f"      Error loading custom GIF {i+1}: {e}")
+                    
+                    if background_clips:
+                        report_progress(0.45, f"{len(background_clips)} custom backgrounds ready")
             except Exception as e:
-                print(f"      Error loading custom GIF/video: {e}")
+                print(f"      Error processing custom GIFs: {e}")
         
         # Try anime clips if requested
         if not background_clips and use_anime_clips:
