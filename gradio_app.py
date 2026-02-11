@@ -1076,7 +1076,6 @@ with gr.Blocks(
         """
         #  YouTube Shorts Video Generator
         ### Create engaging short-form videos with AI voiceover and stock footage
-         **Note**: Only one video can be generated at a time. Refresh the page to cancel and start fresh.
         """,
         elem_classes=["main-title"]
     )
@@ -1249,17 +1248,6 @@ Your call to action.""",
                 )
             
             cancel_status = gr.Textbox(label="Status", visible=False)
-
-            # Examples
-            gr.Examples(
-                examples=[
-                    [EXAMPLE_SCRIPTS[0], "dark aesthetic, discipline, motivation"],
-                    [EXAMPLE_SCRIPTS[1], "productivity, work, success"],
-                    [EXAMPLE_SCRIPTS[2], "sleep, bedroom, night"],
-                ],
-                inputs=[script_input, stock_keywords],
-                label=" Example Scripts",
-            )
 
         with gr.Column(scale=1):
             # Output section
