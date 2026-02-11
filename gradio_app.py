@@ -1105,11 +1105,14 @@ with gr.Blocks(
 
             with gr.Accordion("🖼️ Generate Script from Image", open=False):
                 image_input = gr.Image(
-                    label="📷 Upload, Front Camera, or Back Camera",
+                    label="📷 Upload or Front Camera",
                     sources=["upload", "webcam"],
                     type="pil",
                 )
-                generate_image_script_btn = gr.Button("🔍 Generate from Image", size="sm")
+                
+                with gr.Row():
+                    generate_image_script_btn = gr.Button("🔍 Generate from Image", size="sm")
+                    back_camera_btn = gr.Button("📸 Use Back Camera", size="sm", variant="secondary")
 
             script_input = gr.Textbox(
                 label=" Video Script",
@@ -1404,6 +1407,22 @@ Your call to action.""",
         fn=generate_script_from_image,
         inputs=[image_input, language],
         outputs=[script_input, stock_keywords, yt_title, yt_description],
+    )
+
+    # Back camera functionality
+    back_camera_btn.click(
+        fn=None,
+        inputs=None,
+        outputs=None,
+        js="""
+        () => {
+            const imageInput = document.querySelector('input[type="file"]');
+            if (imageInput) {
+                imageInput.setAttribute('capture', 'environment');
+                imageInput.click();
+            }
+        }
+        """
     )
 
     # YouTube auth button
