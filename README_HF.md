@@ -3,8 +3,7 @@ title: YouTube Shorts Generator
 emoji: 🎬
 colorFrom: indigo
 colorTo: purple
-sdk: gradio
-sdk_version: 4.44.0
+sdk: docker
 app_file: gradio_app.py
 pinned: false
 license: mit
