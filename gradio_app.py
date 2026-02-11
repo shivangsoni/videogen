@@ -1105,24 +1105,12 @@ with gr.Blocks(
                 generate_script_btn = gr.Button("⚡ Generate Script + Title + Description", size="sm")
 
             with gr.Accordion("🖼️ Generate Script from Image", open=False):
-                gr.Markdown("**Option 1: Upload or Front Camera**")
                 image_input = gr.Image(
-                    label="Upload or Capture Image",
+                    label="📷 Upload, Front Camera, or Back Camera",
                     sources=["upload", "webcam"],
                     type="pil",
                 )
                 generate_image_script_btn = gr.Button("🔍 Generate from Image", size="sm")
-
-                gr.Markdown("---")
-                gr.Markdown("**Option 2: Back Camera (Mobile)**")
-                gr.Markdown("*Use your device's native camera app, then upload the saved photo above.*")
-                gr.Markdown("""
-                **Instructions:**
-                1. Close this app
-                2. Open your camera app and take a photo
-                3. Come back here and upload the photo using the upload button above
-                
-                *Or use the front camera option above which works in all browsers.*
                 """)
 
             script_input = gr.Textbox(
