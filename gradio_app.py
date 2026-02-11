@@ -1110,7 +1110,6 @@ with gr.Blocks(
                     type="pil",
                 )
                 generate_image_script_btn = gr.Button("🔍 Generate from Image", size="sm")
-                """)
 
             script_input = gr.Textbox(
                 label=" Video Script",
