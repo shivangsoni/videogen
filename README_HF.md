@@ -64,6 +64,7 @@ Add your Pexels API key as a secret:
 
 To enable script generation (topic or image), also add:
 - `GROQ_API_KEY` from [console.groq.com](https://console.groq.com)
+- `GEMINI_API_KEY` from [Google AI Studio](https://makersuite.google.com/app/apikey) (for image-to-script)
 
 ## Tech Stack
 

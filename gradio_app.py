@@ -79,6 +79,7 @@ PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
 GIPHY_API_KEY = os.environ.get("GIPHY_API_KEY", "")
 PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY", "")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 # Groq API (for script generation)
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -755,19 +756,92 @@ def generate_script_from_image(
     language: str,
     progress=gr.Progress()
 ):
-    """Generate script + keywords + title + description from an image using Groq Vision"""
+    """Generate script + keywords + title + description from an image using Google Gemini Vision"""
     if image is None:
         raise gr.Error("Please upload or capture an image")
-    if not GROQ_API_KEY:
-        raise gr.Error("GROQ_API_KEY not set. Add it to Space secrets.")
+    if not GEMINI_API_KEY:
+        raise gr.Error("GEMINI_API_KEY not set. Add it to Space secrets (get free key at https://makersuite.google.com/app/apikey)")
 
     image_b64 = _encode_image_to_base64(image)
     if not image_b64:
         raise gr.Error("Could not read image")
 
-    # NOTE: Groq Vision models have been deprecated as of Feb 2026
-    # This feature requires an alternative vision API (OpenAI GPT-4 Vision, Anthropic Claude 3, etc.)
-    raise gr.Error("Image-to-script feature is temporarily unavailable. Groq Vision API has been deprecated. Please use the text-based script generator instead.")
+    # Remove data URL prefix for Gemini
+    if "," in image_b64:
+        image_b64 = image_b64.split(",", 1)[1]
+
+    prompt = """Create a YouTube Shorts script based on the image.
+Follow this EXACT format:
+
+SCRIPT:
+Hook (0-2s):
+[One powerful opening line that stops scrolling]
+
+Core:
+[4-7 short punchy lines, each on its own line]
+[Use line breaks between thoughts]
+[Keep each line under 10 words]
+
+End (CTA):
+[Call to action - save/follow/share]
+
+TITLE:
+[Catchy YouTube title under 60 chars, use emotion words]
+
+DESCRIPTION:
+[3-4 lines with emojis, include the hook and CTA]
+
+KEYWORDS:
+[Comma-separated keywords derived from the image]
+
+Return ONLY the content in this format, no explanations."""
+
+    # Use Gemini API
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "contents": [{
+            "parts": [
+                {"text": prompt},
+                {
+                    "inline_data": {
+                        "mime_type": "image/png",
+                        "data": image_b64
+                    }
+                }
+            ]
+        }],
+        "generationConfig": {
+            "temperature": 0.8,
+            "maxOutputTokens": 1000
+        }
+    }
+
+    progress(0.1, desc="Analyzing image with Gemini...")
+    try:
+        response = requests.post(url, headers=headers, json=data, timeout=60)
+        response.raise_for_status()
+        result = response.json()
+        
+        raw = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+        
+        script, keywords, title, description = _parse_groq_response(raw)
+
+        if keywords:
+            hashtags = _format_hashtags(keywords)
+            if hashtags:
+                description = (description + "\n" + hashtags).strip()
+
+        progress(1.0, desc="Content ready")
+
+        return script, keywords, title, description
+        
+    except Exception as e:
+        raise gr.Error(f"Gemini API error: {str(e)}")
 
 
 def generate_script_from_base64(
